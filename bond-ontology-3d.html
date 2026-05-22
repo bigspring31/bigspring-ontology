@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>채권 & 거시경제 온톨로지</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#04080f;color:#c8d8e8;font-family:'Noto Sans KR',sans-serif;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;position:fixed;top:0;left:0;}
+
+#header{position:fixed;top:20px;left:20px;pointer-events:none;z-index:10;}
+#header h1{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.3em;color:#4a9eff;text-transform:uppercase;margin-bottom:3px;opacity:.8;}
+#header h2{font-size:20px;font-weight:700;color:#e8f4ff;}
+
+#toolbar{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:20;}
+.tb-btn{background:rgba(10,20,40,.9);border:1px solid rgba(74,158,255,.3);color:#8ab4d8;padding:7px 12px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;border-radius:3px;transition:all .18s;text-align:left;white-space:nowrap;}
+.tb-btn:hover,.tb-btn.active{background:rgba(74,158,255,.18);border-color:#4a9eff;color:#e8f4ff;}
+.tb-btn.danger:hover{background:rgba(255,80,80,.18);border-color:#ff5050;color:#ff8080;}
+.tb-sep{height:1px;background:rgba(74,158,255,.15);margin:2px 0;}
+
+#filters{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:20;flex-wrap:wrap;justify-content:center;max-width:90vw;}
+.f-btn{background:rgba(10,20,40,.9);border:1px solid rgba(74,158,255,.25);color:#6a8aaa;padding:7px 14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.12em;cursor:pointer;border-radius:3px;transition:all .18s;}
+.f-btn:hover,.f-btn.active{background:rgba(74,158,255,.2);border-color:#4a9eff;color:#e8f4ff;}
+
+#stats{position:fixed;bottom:62px;right:16px;font-family:'Space Mono',monospace;font-size:9px;color:rgba(74,158,255,.4);letter-spacing:.1em;line-height:1.9;text-align:right;z-index:10;pointer-events:none;}
+#legend{position:fixed;left:16px;bottom:62px;display:flex;flex-direction:column;gap:7px;pointer-events:none;z-index:10;}
+.leg{display:flex;align-items:center;gap:7px;font-size:10px;color:#5a7a9a;}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+#modebanner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.5);color:#4a9eff;padding:10px 22px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;border-radius:3px;pointer-events:none;z-index:30;display:none;}
+#shiftbanner{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);color:#4a9eff;padding:5px 14px;font-family:'Space Mono',monospace;font-size:9px;border-radius:3px;pointer-events:none;z-index:30;display:none;}
+
+#tooltip{position:fixed;pointer-events:none;background:rgba(4,8,20,.93);border:1px solid rgba(74,158,255,.4);border-radius:4px;padding:11px 14px;max-width:240px;opacity:0;transition:opacity .18s;z-index:40;}
+#tooltip.vis{opacity:1;}
+#tt-cat{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;margin-bottom:3px;}
+#tt-name{font-size:14px;font-weight:700;color:#e8f4ff;margin-bottom:5px;}
+#tt-desc{font-size:11px;color:#8aaccc;line-height:1.6;}
+
+/* PANELS */
+.side-panel{position:fixed;top:0;height:100%;width:300px;background:rgba(4,10,24,.97);z-index:50;display:flex;flex-direction:column;transition:transform .25s;}
+#panel{right:0;border-left:1px solid rgba(74,158,255,.2);transform:translateX(100%);}
+#panel.open{transform:translateX(0);}
+#epanel{left:0;width:280px;border-right:1px solid rgba(255,146,43,.25);transform:translateX(-100%);}
+#epanel.open{transform:translateX(0);}
+
+.panel-head{padding:14px 16px;border-bottom:1px solid rgba(74,158,255,.15);display:flex;justify-content:space-between;align-items:center;}
+.panel-head span{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:#4a9eff;}
+.panel-head.orange span{color:#ff922b;}
+.panel-head.orange{border-bottom-color:rgba(255,146,43,.15);}
+.panel-close{background:none;border:none;color:#6a8aaa;font-size:18px;cursor:pointer;}
+.panel-close:hover{color:#e8f4ff;}
+.panel-tabs{display:flex;border-bottom:1px solid rgba(74,158,255,.12);}
+.ptab{flex:1;padding:8px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;cursor:pointer;border:none;background:none;color:#4a6a8a;border-bottom:2px solid transparent;transition:all .18s;}
+.ptab.active{color:#4a9eff;border-bottom-color:#4a9eff;background:rgba(74,158,255,.06);}
+.panel-body{padding:16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.panel-code{padding:10px;flex:1;overflow-y:auto;display:none;flex-direction:column;gap:8px;}
+
+.fl{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;color:#4a9eff;margin-bottom:4px;}
+.fi{width:100%;background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);color:#e8f4ff;padding:8px 10px;font-family:'Noto Sans KR',sans-serif;font-size:12px;border-radius:3px;outline:none;}
+.fi:focus{border-color:#4a9eff;}
+select.fi option{background:#0a1428;}
+textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
+.pb{padding:9px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.12em;cursor:pointer;border-radius:3px;border:1px solid;width:100%;transition:all .18s;}
+.pb.blue{background:rgba(74,158,255,.15);border-color:#4a9eff;color:#4a9eff;}
+.pb.blue:hover{background:rgba(74,158,255,.3);}
+.pb.orange{background:rgba(255,146,43,.1);border-color:#ff922b;color:#ff922b;}
+.pb.orange:hover{background:rgba(255,146,43,.25);}
+.pb.red{background:rgba(255,80,80,.1);border-color:rgba(255,80,80,.4);color:#ff6b6b;}
+.pb.red:hover{background:rgba(255,80,80,.25);}
+.pb.green{background:rgba(81,207,102,.1);border-color:#51cf66;color:#51cf66;}
+.pb.green:hover{background:rgba(81,207,102,.25);}
+.divider{height:1px;background:rgba(74,158,255,.12);}
+#edge-list{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;}
+.edge-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:rgba(74,158,255,.06);border-radius:3px;font-size:11px;color:#8ab4d8;}
+.edge-del{background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:13px;padding:0 2px;}
+#node-code-ta{width:100%;min-height:200px;background:rgba(0,0,0,.4);border:1px solid rgba(74,158,255,.2);color:#c8d8e8;padding:10px;font-family:'Space Mono',monospace;font-size:10px;line-height:1.7;border-radius:3px;outline:none;resize:vertical;}
+
+/* EDGE PANEL SPECIFICS */
+.e-nodes{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(255,146,43,.06);border:1px solid rgba(255,146,43,.15);border-radius:4px;}
+.e-badge{flex:1;text-align:center;font-size:11px;font-weight:700;color:#e8f4ff;padding:4px;border-radius:3px;}
+.e-arrow{color:#ff922b;font-size:18px;flex-shrink:0;}
+.dir-row{display:flex;gap:6px;margin-top:8px;}
+.dir-btn{flex:1;background:rgba(255,146,43,.06);border:1px solid rgba(255,146,43,.2);color:#8a6a4a;padding:6px 2px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;border-radius:3px;transition:all .15s;}
+.dir-btn.active{background:rgba(255,146,43,.2);border-color:#ff922b;color:#ff922b;}
+.rel-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.chip{background:rgba(255,146,43,.08);border:1px solid rgba(255,146,43,.25);color:#ff922b;padding:4px 9px;font-size:11px;cursor:pointer;border-radius:12px;transition:all .15s;}
+.chip:hover{background:rgba(255,146,43,.25);}
+.wline{height:3px;background:#ff922b;border-radius:2px;transition:width .15s;}
+.wval{font-family:'Space Mono',monospace;font-size:11px;color:#ff922b;width:20px;text-align:right;}
+
+/* MODALS */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal.open{display:flex;}
+.mbox{background:#04080f;border:1px solid rgba(74,158,255,.4);border-radius:6px;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;}
+.mhead{padding:14px 16px;border-bottom:1px solid rgba(74,158,255,.15);display:flex;justify-content:space-between;align-items:center;}
+.mhead span{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:#4a9eff;}
+.mclose{background:none;border:none;color:#6a8aaa;font-size:20px;cursor:pointer;}
+.mclose:hover{color:#e8f4ff;}
+.mbody{padding:16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.msec{border-radius:4px;padding:12px;}
+.msec.blue{background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.15);}
+.msec.green{background:rgba(81,207,102,.04);border:1px solid rgba(81,207,102,.15);}
+.msec.purple{background:rgba(204,93,232,.04);border:1px solid rgba(204,93,232,.2);}
+.msec-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;margin-bottom:8px;}
+.mhint{font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-top:5px;}
+.mbtn{padding:8px 14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;border-radius:3px;border:1px solid;transition:all .18s;}
+.mbtn.blue{background:rgba(74,158,255,.12);border-color:#4a9eff;color:#4a9eff;}
+.mbtn.blue:hover{background:rgba(74,158,255,.28);}
+.mbtn.green{background:rgba(81,207,102,.1);border-color:#51cf66;color:#51cf66;}
+.mbtn.green:hover{background:rgba(81,207,102,.25);}
+.mbtn.purple{background:rgba(204,93,232,.12);border-color:#cc5de8;color:#cc5de8;}
+.mbtn.purple:hover{background:rgba(204,93,232,.28);}
+#code-ta{width:100%;height:220px;background:rgba(0,0,0,.4);border:1px solid rgba(204,93,232,.2);color:#c8d8e8;padding:10px;font-family:'Space Mono',monospace;font-size:10px;line-height:1.7;border-radius:3px;outline:none;resize:vertical;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="header"><h1>Knowledge Ontology · 3D</h1><h2>채권 & 거시경제</h2></div>
+
+<div id="toolbar">
+  <button class="tb-btn active" id="btn-rotate" onclick="toggleRotate()">⟳ 자동회전</button>
+  <button class="tb-btn" onclick="resetView()">⌖ 뷰 초기화</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openSearch()">🔍 검색</button>
+  <button class="tb-btn" onclick="openAddNode()">＋ 노드 추가</button>
+  <button class="tb-btn" id="btn-connect" onclick="toggleConnect()">⇔ 연결 모드</button>
+  <button class="tb-btn" onclick="openCatModal()">◈ 카테고리</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openSaveLoad()">💾 저장 / 불러오기</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn danger" onclick="resetAll()">↺ 초기화</button>
+</div>
+
+<div id="filters"></div>
+<div id="stats">NODES <span id="nc">0</span> · EDGES <span id="ec">0</span></div>
+<div id="legend"></div>
+<div id="modebanner">⇔ 연결 모드 — 노드를 탭해서 연결 · ESC 종료</div>
+<div id="shiftbanner">SHIFT 누른 채 드래그 → 화면 이동</div>
+
+<div id="tooltip"><div id="tt-cat"></div><div id="tt-name"></div><div id="tt-desc"></div></div>
+
+<!-- NODE PANEL -->
+<div class="side-panel" id="panel">
+  <div class="panel-head"><span id="panel-title">NODE EDITOR</span><button class="panel-close" onclick="closePanel()">×</button></div>
+  <div class="panel-tabs">
+    <button class="ptab active" id="tab-form" onclick="switchTab('form')">폼 편집</button>
+    <button class="ptab" id="tab-code" onclick="switchTab('code')">JSON 편집</button>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <input type="hidden" id="edit-id">
+    <div><div class="fl">LABEL</div><input class="fi" id="edit-label" placeholder="노드 이름"></div>
+    <div><div class="fl">CATEGORY</div><select class="fi" id="edit-cat"></select></div>
+    <div><div class="fl">SIZE</div><input class="fi" id="edit-size" type="number" min="8" max="40" value="16"></div>
+    <div><div class="fl">DESCRIPTION</div><textarea class="fi" id="edit-desc" placeholder="개념 설명"></textarea></div>
+    <button class="pb blue" onclick="saveNode()">저장</button>
+    <div id="del-section" style="display:none;">
+      <div class="divider"></div>
+      <div class="fl" style="margin-top:4px">연결된 엣지</div>
+      <div id="edge-list"></div>
+      <div class="divider" style="margin-top:8px"></div>
+      <button class="pb green" id="btn-center" onclick="setCenter()" style="margin-bottom:6px;">⌖ 중심 노드로 설정</button>
+      <button class="pb red" onclick="deleteNode()">노드 삭제</button>
+    </div>
+  </div>
+  <div class="panel-code" id="panel-code">
+    <div style="display:flex;gap:6px;">
+      <button class="mbtn purple" onclick="loadNodeToCode()" style="flex:1;">현재 노드 가져오기</button>
+      <button class="mbtn blue" onclick="applyNodeCode()" style="flex:1;">적용</button>
+    </div>
+    <div class="fl" style="margin-top:4px">NODE JSON</div>
+    <textarea id="node-code-ta" placeholder='{"id":"x","label":"이름","cat":"macro","desc":"설명","size":16}'></textarea>
+    <div class="mhint">붙여넣거나 수정 후 적용 버튼을 누르세요</div>
+  </div>
+</div>
+
+<!-- EDGE PANEL -->
+<div class="side-panel" id="epanel">
+  <div class="panel-head orange"><span>EDGE EDITOR</span><button class="panel-close" onclick="closeEPanel()">×</button></div>
+  <div class="panel-body">
+    <div>
+      <div class="fl" style="color:#ff922b">연결 노드</div>
+      <div class="e-nodes">
+        <div class="e-badge" id="ep-src"></div>
+        <div class="e-arrow" id="ep-arrow">↔</div>
+        <div class="e-badge" id="ep-tgt"></div>
+      </div>
+      <div class="dir-row">
+        <button class="dir-btn active" id="dir-both" onclick="setDir('both')">↔ 양방향</button>
+        <button class="dir-btn" id="dir-fwd" onclick="setDir('fwd')">→ 단방향</button>
+        <button class="dir-btn" id="dir-bwd" onclick="setDir('bwd')">← 역방향</button>
+      </div>
+    </div>
+    <div>
+      <div class="fl" style="color:#ff922b">관계 타입</div>
+      <input class="fi" id="ep-rel" placeholder="예: 영향, 결정, 상관, 압력 ..." style="border-color:rgba(255,146,43,.3);margin-bottom:8px;">
+      <div class="rel-chips">
+        <button class="chip" onclick="setRel('영향')">영향</button>
+        <button class="chip" onclick="setRel('결정')">결정</button>
+        <button class="chip" onclick="setRel('상관')">상관</button>
+        <button class="chip" onclick="setRel('압력')">압력</button>
+        <button class="chip" onclick="setRel('반영')">반영</button>
+        <button class="chip" onclick="setRel('구성')">구성</button>
+        <button class="chip" onclick="setRel('헤지')">헤지</button>
+        <button class="chip" onclick="setRel('기반')">기반</button>
+      </div>
+    </div>
+    <div>
+      <div class="fl" style="color:#ff922b">연결 강도</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <div class="wline" id="ep-wline" style="width:40px"></div>
+        <div class="wval" id="ep-wval">2</div>
+      </div>
+      <input type="range" id="ep-w" min="1" max="5" step="1" value="2" oninput="updateW(this.value)" style="width:100%;accent-color:#ff922b;cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-top:4px;"><span>약함</span><span>보통</span><span>강함</span></div>
+    </div>
+    <div class="divider"></div>
+    <button class="pb orange" onclick="saveEdge()">저장</button>
+    <button class="pb red" onclick="delEdge()">엣지 삭제</button>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal" id="catmodal">
+  <div class="mbox">
+    <div class="mhead"><span>◈ CATEGORY MANAGER</span><button class="mclose" onclick="closeCatModal()">×</button></div>
+    <div class="mbody">
+      <div id="cat-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input id="new-cat-label" class="fi" placeholder="새 카테고리 이름" style="flex:1;">
+        <input id="new-cat-color" type="color" value="#00ccff" style="width:36px;height:36px;border:1px solid rgba(74,158,255,.3);background:none;border-radius:3px;cursor:pointer;padding:2px;">
+        <button onclick="addCat()" class="mbtn blue">추가</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH MODAL -->
+<div class="modal" id="searchmodal">
+  <div class="mbox" style="width:min(480px,92vw);">
+    <div class="mhead">
+      <span>🔍 SEARCH</span>
+      <button class="mclose" onclick="closeSearch()">×</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid rgba(74,158,255,.12);">
+      <input id="search-input" class="fi" placeholder="노드명, 설명, 연결 관계 검색..." oninput="doSearch(this.value)" autocomplete="off" style="font-size:13px;">
+    </div>
+    <div id="search-results" style="flex:1;overflow-y:auto;max-height:50vh;padding:8px 0;"></div>
+  </div>
+</div>
+
+<!-- SAVE/LOAD MODAL -->
+<input type="file" id="file-input" accept=".json" style="display:none">
+<div class="modal" id="savemodal">
+  <div class="mbox">
+    <div class="mhead"><span>💾 SAVE / LOAD</span><button class="mclose" onclick="closeSL()">×</button></div>
+    <div class="mbody">
+      <div class="msec blue">
+        <div class="msec-title" style="color:#4a9eff;">💾 저장</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="save-name" class="fi" style="flex:1;" placeholder="파일명">
+          <button onclick="saveFile()" class="mbtn blue" style="white-space:nowrap;">다운로드</button>
+        </div>
+        <div class="mhint">→ 다운로드 폴더에 .json 으로 저장돼요</div>
+      </div>
+      <div class="msec green">
+        <div class="msec-title" style="color:#51cf66;">📂 파일 불러오기</div>
+        <button onclick="loadFile()" class="mbtn green" style="width:100%;">JSON 파일 선택</button>
+        <div class="mhint">→ 이전에 저장한 .json 파일을 선택하세요</div>
+      </div>
+      <div class="msec purple">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="msec-title" style="color:#cc5de8;margin-bottom:0;">✎ 코드 붙여넣기</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="codeFromCurrent()" class="mbtn purple" style="font-size:9px;padding:4px 8px;">현재 데이터</button>
+            <button onclick="applyCode()" class="mbtn purple" style="font-size:9px;padding:4px 8px;">적용</button>
+          </div>
+        </div>
+        <textarea id="code-ta" placeholder='이전 버전 JSON을 붙여넣으세요&#10;{"version":1,"nodes":[...],"edges":[...],"categories":[]}'></textarea>
+        <div class="mhint">→ 적용 버튼을 누르면 현재 온톨로지에 반영돼요</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// SCHEMA
+// ═══════════════════════════════════════
+const SCHEMA_VERSION = 1;
+const STORAGE_KEY = 'ontology_v5';
+
+// ═══════════════════════════════════════
+// DEFAULT DATA
+// ═══════════════════════════════════════
+const DEF_CATS=[
+  {id:'macro',label:'거시경제 지표',color:'#4a9eff'},
+  {id:'cb',label:'중앙은행·통화정책',color:'#ff6b6b'},
+  {id:'bond',label:'채권 유형',color:'#51cf66'},
+  {id:'concept',label:'채권 개념',color:'#ffd43b'},
+  {id:'credit',label:'Credit·신용',color:'#cc5de8'},
+  {id:'market',label:'시장·투자',color:'#ff922b'},
+];
+const DEF_NODES=[
+  {id:'gdp',label:'GDP',cat:'macro',desc:'국내총생산. 경제 성장의 핵심 지표로 채권 수익률과 장기 추세 연동',size:22},
+  {id:'cpi',label:'물가(CPI)',cat:'macro',desc:'소비자물가지수. 인플레이션 측정. 실질금리 = 명목금리 - CPI',size:20},
+  {id:'unemp',label:'실업률',cat:'macro',desc:'고용시장 상태. 필립스 곡선으로 인플레이션과 역상관 관계',size:16},
+  {id:'yieldcurve',label:'수익률 곡선',cat:'macro',desc:'단기~장기 국채 수익률 연결. 경기침체 선행 지표로 활용',size:24},
+  {id:'fx',label:'환율',cat:'macro',desc:'통화가치. 외국인 채권 투자 수익률에 직접 영향',size:15},
+  {id:'current',label:'경상수지',cat:'macro',desc:'무역 및 자본 흐름. 국채 수요와 통화가치에 영향',size:14},
+  {id:'fiscal',label:'재정정책',cat:'macro',desc:'정부 지출·세금. 국채 공급량 결정. 리카도 동등성 이슈',size:17},
+  {id:'fed',label:'중앙은행(Fed)',cat:'cb',desc:'통화정책 결정. 기준금리, QE/QT로 채권시장 전체 지배',size:26},
+  {id:'rate',label:'기준금리',cat:'cb',desc:'모든 채권 수익률의 기준점. 단기채 가격에 직접 영향',size:22},
+  {id:'qe',label:'QE/QT',cat:'cb',desc:'양적완화/긴축. 국채 매입·매도로 장기금리 조절',size:18},
+  {id:'realrate',label:'실질금리',cat:'cb',desc:'명목금리 - 기대인플레이션. 채권 실질 수익의 핵심',size:18},
+  {id:'taylor',label:'테일러 준칙',cat:'cb',desc:'인플레이션·GDP갭 기반 최적 금리 산출 공식',size:13},
+  {id:'govbond',label:'국채',cat:'bond',desc:'정부 발행 채권. 무위험 수익률(Risk-Free Rate) 기준',size:22},
+  {id:'corpbond',label:'회사채',cat:'bond',desc:'기업 발행 채권. 국채 대비 신용 스프레드 추가',size:20},
+  {id:'tips',label:'TIPS',cat:'bond',desc:'물가연동채. 원금이 CPI에 연동되어 인플레이션 헤지',size:16},
+  {id:'mbs',label:'MBS',cat:'bond',desc:'주택담보대출 유동화증권. 선불위험 내포',size:15},
+  {id:'hy',label:'하이일드채',cat:'bond',desc:'투기등급(BB↓) 회사채. 고수익 고위험, 경기 민감',size:17},
+  {id:'em',label:'이머징채권',cat:'bond',desc:'신흥국 발행 채권. 환위험 + 국가신용위험 복합',size:15},
+  {id:'duration',label:'듀레이션',cat:'concept',desc:'금리 변화에 대한 채권 가격 민감도. 만기 길수록 높음',size:21},
+  {id:'convex',label:'볼록성',cat:'concept',desc:'듀레이션 변화율. 금리 하락시 이익이 상승 손실보다 큼',size:15},
+  {id:'ytm',label:'만기수익률(YTM)',cat:'concept',desc:'현재가로 채권 보유시 얻는 연간 수익률',size:18},
+  {id:'spread',label:'스프레드',cat:'concept',desc:'국채 대비 추가 수익률. 리스크 프리미엄의 핵심 척도',size:20},
+  {id:'zspread',label:'Z-스프레드',cat:'concept',desc:'전체 수익률 곡선 대비 스프레드. OAS 계산의 기반',size:14},
+  {id:'oas',label:'OAS',cat:'concept',desc:'옵션 조정 스프레드. 내재 옵션 제거한 순수 신용 스프레드',size:15},
+  {id:'rating',label:'신용등급',cat:'credit',desc:'S&P·무디스·피치의 채무불이행 위험 평가. 스프레드 결정',size:22},
+  {id:'pd',label:'부도확률(PD)',cat:'credit',desc:'차주의 채무불이행 가능성. CDS 프리미엄과 연동',size:18},
+  {id:'lgd',label:'손실율(LGD)',cat:'credit',desc:'부도시 회수 불가능 손실 비율. 담보·선순위에 따라 변동',size:16},
+  {id:'cds',label:'CDS',cat:'credit',desc:'신용부도스왑. 채권 신용위험 헤지 파생상품',size:19},
+  {id:'ig',label:'투자등급(IG)',cat:'credit',desc:'BBB- 이상 등급. 기관 투자 가능, 낮은 스프레드',size:17},
+  {id:'leverage',label:'레버리지',cat:'credit',desc:'부채/자본 비율. 회사채 신용 분석의 핵심 지표',size:15},
+  {id:'coverage',label:'이자보상배율',cat:'credit',desc:'EBIT/이자비용. 채무 상환 능력 측정',size:14},
+  {id:'liquidity',label:'유동성',cat:'market',desc:'거래 비용·속도. 유동성 프리미엄이 스프레드에 반영',size:18},
+  {id:'riskprem',label:'위험 프리미엄',cat:'market',desc:'리스크 감수 대가 추가 수익. 경기·심리에 따라 변동',size:17},
+  {id:'carry',label:'캐리',cat:'market',desc:'보유 비용 대비 수익. 금리차 전략의 핵심 개념',size:16},
+  {id:'arbitrage',label:'차익거래',cat:'market',desc:'가격 불균형 이용. 채권 차익거래가 수익률 수렴 견인',size:14},
+];
+const DEF_EDGES=[
+  {s:'cpi',t:'fed',w:3},{s:'gdp',t:'fed',w:3},{s:'unemp',t:'fed',w:2},
+  {s:'taylor',t:'rate',w:2},{s:'fed',t:'rate',w:3},{s:'fed',t:'qe',w:2},
+  {s:'cpi',t:'realrate',w:3},{s:'rate',t:'realrate',w:3},
+  {s:'yieldcurve',t:'govbond',w:3},{s:'gdp',t:'yieldcurve',w:2},
+  {s:'rate',t:'yieldcurve',w:3},{s:'qe',t:'govbond',w:2},
+  {s:'cpi',t:'tips',w:3},{s:'fiscal',t:'govbond',w:2},
+  {s:'fx',t:'em',w:2},{s:'current',t:'fx',w:1},
+  {s:'duration',t:'ytm',w:2},{s:'convex',t:'duration',w:2},
+  {s:'ytm',t:'govbond',w:2},{s:'ytm',t:'corpbond',w:2},
+  {s:'spread',t:'corpbond',w:3},{s:'spread',t:'hy',w:3},
+  {s:'zspread',t:'spread',w:2},{s:'oas',t:'zspread',w:2},
+  {s:'rate',t:'duration',w:2},
+  {s:'rating',t:'spread',w:3},{s:'rating',t:'ig',w:2},{s:'rating',t:'hy',w:2},
+  {s:'pd',t:'rating',w:2},{s:'lgd',t:'pd',w:1},
+  {s:'cds',t:'pd',w:2},{s:'cds',t:'spread',w:2},
+  {s:'leverage',t:'pd',w:2},{s:'coverage',t:'pd',w:2},
+  {s:'ig',t:'corpbond',w:2},{s:'hy',t:'corpbond',w:2},
+  {s:'liquidity',t:'spread',w:2},{s:'riskprem',t:'spread',w:2},
+  {s:'carry',t:'govbond',w:1},{s:'carry',t:'em',w:2},
+  {s:'arbitrage',t:'yieldcurve',w:1},{s:'realrate',t:'tips',w:2},
+  {s:'riskprem',t:'hy',w:2},{s:'liquidity',t:'mbs',w:2},{s:'mbs',t:'corpbond',w:1},
+];
+
+// ═══════════════════════════════════════
+// LIVE DATA
+// ═══════════════════════════════════════
+let CATS, NODES, EDGES;
+
+function resetToDefaults(){
+  CATS  = JSON.parse(JSON.stringify(DEF_CATS));
+  NODES = JSON.parse(JSON.stringify(DEF_NODES));
+  EDGES = JSON.parse(JSON.stringify(DEF_EDGES));
+}
+resetToDefaults();
+
+function catColor(id){ return (CATS.find(c=>c.id===id)||{color:'#4a9eff'}).color; }
+function catLabel(id){ return (CATS.find(c=>c.id===id)||{label:id}).label; }
+
+// ═══════════════════════════════════════
+// LOCALSTORAGE
+// ═══════════════════════════════════════
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: SCHEMA_VERSION,
+      centerNodeId: centerNodeId||null,
+      categories: CATS,
+      nodes: NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+      edges: EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+    }));
+  }catch(e){}
+}
+function tryLoad(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(!d.nodes || !d.nodes.length) return false;
+    CATS  = (d.categories && d.categories.length) ? d.categories : JSON.parse(JSON.stringify(DEF_CATS));
+    NODES = d.nodes;
+    EDGES = d.edges || [];
+    centerNodeId = d.centerNodeId || null;
+    return true;
+  }catch(e){ return false; }
+}
+
+// ═══════════════════════════════════════
+// CANVAS + 3D
+// ═══════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+function place(n, i, total){
+  const phi   = Math.acos(1 - 2*(i+.5)/Math.max(total,1));
+  const theta = Math.PI*(1+Math.sqrt(5))*i;
+  const r     = 240 + Math.random()*80;
+  n.x = r*Math.sin(phi)*Math.cos(theta);
+  n.y = r*Math.sin(phi)*Math.sin(theta);
+  n.z = r*Math.cos(phi);
+  n.vx = n.vy = n.vz = 0;
+  n.sx = n.sy = 0; n.pscale = .75; n.depth = 0;
+}
+function placeAll(){ NODES.forEach((n,i)=>place(n,i,NODES.length)); }
+
+let forceFrames = 0;
+function forceStep(){
+  const k=180, rep=28000, damp=.85;
+  for(let i=0;i<NODES.length;i++){
+    let fx=0,fy=0,fz=0;
+    for(let j=0;j<NODES.length;j++){
+      if(i===j) continue;
+      const dx=NODES[i].x-NODES[j].x, dy=NODES[i].y-NODES[j].y, dz=NODES[i].z-NODES[j].z;
+      const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=rep/(d*d);
+      fx+=f*dx/d; fy+=f*dy/d; fz+=f*dz/d;
+    }
+    fx -= NODES[i].x*.001; fy -= NODES[i].y*.001; fz -= NODES[i].z*.001;
+    NODES[i]._fx=fx; NODES[i]._fy=fy; NODES[i]._fz=fz;
+  }
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b) return;
+    const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
+    const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=(d-k)*.015*(e.w||2);
+    a._fx+=f*dx/d; a._fy+=f*dy/d; a._fz+=f*dz/d;
+    b._fx-=f*dx/d; b._fy-=f*dy/d; b._fz-=f*dz/d;
+  });
+  NODES.forEach(n=>{
+    n.vx=(n.vx+(n._fx||0))*damp; n.vy=(n.vy+(n._fy||0))*damp; n.vz=(n.vz+(n._fz||0))*damp;
+    n.x+=n.vx; n.y+=n.vy; n.z+=n.vz;
+  });
+}
+
+let camX=.3, camY=0, panX=0, panY=0, autoRotate=true;
+function proj(x,y,z){
+  const cx=x*Math.cos(camY)-z*Math.sin(camY), cz=x*Math.sin(camY)+z*Math.cos(camY);
+  const cy=y*Math.cos(camX)-cz*Math.sin(camX), fz=y*Math.sin(camX)+cz*Math.cos(camX);
+  const sc=900/(900+fz+300);
+  return {sx:cx*sc, sy:cy*sc, sc, depth:fz};
+}
+
+// ═══════════════════════════════════════
+// UI SYNC
+// ═══════════════════════════════════════
+let activeFilter = 'all';
+function syncUI(){
+  // filters
+  const fEl = document.getElementById('filters');
+  fEl.innerHTML = '';
+  const ab = document.createElement('button');
+  ab.className = 'f-btn' + (activeFilter==='all'?' active':'');
+  ab.textContent = '전체';
+  ab.onclick = ()=>{ activeFilter='all'; syncUI(); };
+  fEl.appendChild(ab);
+  CATS.forEach(c=>{
+    const b = document.createElement('button');
+    b.className = 'f-btn' + (activeFilter===c.id?' active':'');
+    b.textContent = c.label;
+    if(activeFilter===c.id){ b.style.borderColor=c.color; b.style.color=c.color; }
+    b.onclick = ()=>{ activeFilter=c.id; syncUI(); };
+    fEl.appendChild(b);
+  });
+  // legend
+  const lEl = document.getElementById('legend');
+  lEl.innerHTML = '';
+  CATS.forEach(c=>{
+    const d = document.createElement('div'); d.className='leg';
+    d.innerHTML = `<div class="leg-dot" style="background:${c.color}"></div>${c.label}`;
+    lEl.appendChild(d);
+  });
+  // category select in node panel
+  const sel = document.getElementById('edit-cat');
+  if(sel){
+    const cur = sel.value;
+    sel.innerHTML = '';
+    CATS.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.label; sel.appendChild(o); });
+    if(CATS.find(c=>c.id===cur)) sel.value=cur;
+  }
+}
+function visible(n){ return activeFilter==='all' || n.cat===activeFilter; }
+
+// ═══════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════
+let hovered=null, selEdge=null;
+let connecting=false, connectSrc=null;
+let dragging=false, nodeDragging=false, dragN=null;
+let lastX=0, lastY=0, downX=0, downY=0, moved=false, shiftHeld=false;
+let centerNodeId = null;
+const TT = document.getElementById('tooltip');
+
+window.addEventListener('keydown', e=>{ shiftHeld=e.shiftKey; if(e.key==='Escape'&&connecting) toggleConnect(); });
+window.addEventListener('keyup',   e=>{ shiftHeld=e.shiftKey; });
+
+function gp(e){
+  if(e.touches&&e.touches.length)       return {x:e.touches[0].clientX,       y:e.touches[0].clientY};
+  if(e.changedTouches&&e.changedTouches.length) return {x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+function hitN(mx,my){
+  let best=null, minD=30;
+  NODES.forEach(n=>{ if(!visible(n)) return; const d=Math.hypot(n.sx-mx,n.sy-my); if(d<minD){minD=d;best=n;} });
+  return best;
+}
+function hitE(mx,my){
+  let best=null, minD=18;
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b||!visible(a)||!visible(b)) return;
+    const dx=b.sx-a.sx, dy=b.sy-a.sy, len2=dx*dx+dy*dy;
+    if(len2<1) return;
+    const t=Math.max(0,Math.min(1,((mx-a.sx)*dx+(my-a.sy)*dy)/len2));
+    const d=Math.hypot(a.sx+t*dx-mx, a.sy+t*dy-my);
+    if(d<minD){minD=d;best=e;}
+  });
+  return best;
+}
+
+function onDown(e){
+  const p=gp(e); lastX=p.x; lastY=p.y; downX=p.x; downY=p.y; moved=false;
+  const mx=p.x-W/2, my=p.y-H/2;
+  const n=hitN(mx,my);
+  if(connecting){
+    if(n){ if(!connectSrc) connectSrc=n; else if(connectSrc.id!==n.id){ addEdge(connectSrc.id,n.id); connectSrc=null; } }
+    return;
+  }
+  if(n && !shiftHeld){ dragN=n; nodeDragging=false; autoRotate=false; return; }
+  dragging=true; autoRotate=false;
+}
+function onMove(e){
+  const p=gp(e);
+  const dx=p.x-lastX, dy=p.y-lastY;
+  if(Math.hypot(p.x-downX,p.y-downY)>5) moved=true;
+
+  if(dragN && !dragging){
+    if(!nodeDragging && Math.hypot(dx,dy)>6) nodeDragging=true;
+  }
+  if(nodeDragging && dragN){
+    const sc=1/(dragN.pscale||.75);
+    dragN.x += dx*Math.cos(-camY)*sc;
+    dragN.z += -dx*Math.sin(-camY)*sc;
+    dragN.y += dy*Math.cos(-camX)*sc;
+    dragN.vx=dragN.vy=dragN.vz=0;
+    lastX=p.x; lastY=p.y; return;
+  }
+  if(dragging){
+    if(shiftHeld){ panX+=dx; panY+=dy; }
+    else { camY+=dx*.006; camX+=dy*.006; }
+    lastX=p.x; lastY=p.y; return;
+  }
+  if(connecting) return;
+  // hover
+  const mx=p.x-W/2, my=p.y-H/2;
+  hovered  = hitN(mx,my);
+  selEdge  = hovered ? null : hitE(mx,my);
+  if(hovered){
+    TT.style.left=(p.x+14)+'px'; TT.style.top=(p.y-18)+'px';
+    document.getElementById('tt-cat').style.color = catColor(hovered.cat);
+    document.getElementById('tt-cat').textContent  = catLabel(hovered.cat);
+    document.getElementById('tt-name').textContent = hovered.label;
+    document.getElementById('tt-desc').textContent = hovered.desc||'';
+    TT.classList.add('vis');
+  } else TT.classList.remove('vis');
+}
+function onUp(e){
+  const wasNodeDrag=nodeDragging, wasMoved=moved;
+  nodeDragging=false; dragN=null; dragging=false; moved=false;
+  if(connecting||wasNodeDrag) return;
+  if(wasMoved) return;
+  const p=gp(e);
+  const mx=p.x-W/2, my=p.y-H/2;
+  const n=hitN(mx,my);
+  if(n){ closeEPanel(); openEdit(n); return; }
+  const eid=hitE(mx,my);
+  if(eid){ closePanel(); openEPanel(eid); }
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup',   onUp);
+canvas.addEventListener('mouseleave',()=>{ dragging=false; nodeDragging=false; dragN=null; TT.classList.remove('vis'); });
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); onDown(e); },{passive:false});
+canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); onMove(e); },{passive:false});
+canvas.addEventListener('touchend',   e=>{ e.preventDefault(); onUp(e);   },{passive:false});
+
+// ═══════════════════════════════════════
+// TOOLBAR ACTIONS
+// ═══════════════════════════════════════
+function toggleRotate(){ autoRotate=!autoRotate; document.getElementById('btn-rotate').classList.toggle('active',autoRotate); }
+function toggleConnect(){
+  connecting=!connecting; connectSrc=null;
+  document.getElementById('btn-connect').classList.toggle('active',connecting);
+  document.getElementById('modebanner').style.display = connecting?'block':'none';
+  if(connecting){ autoRotate=false; document.getElementById('btn-rotate').classList.remove('active'); }
+}
+function resetView(){
+  if(centerNodeId){
+    const cn=NODES.find(n=>n.id===centerNodeId);
+    if(cn){ const dx=-cn.x,dy=-cn.y,dz=-cn.z; NODES.forEach(n=>{ n.x+=dx; n.y+=dy; n.z+=dz; n.vx=n.vy=n.vz=0; }); }
+  }
+  camX=.3; camY=0; panX=0; panY=0;
+}
+function resetAll(){
+  if(!confirm('기본 35개 노드로 초기화할까요?')) return;
+  resetToDefaults(); placeAll(); forceFrames=0; activeFilter='all';
+  hovered=null; selEdge=null; centerNodeId=null;
+  closePanel(); closeEPanel();
+  save(); syncUI();
+}
+window.toggleRotate=toggleRotate; window.toggleConnect=toggleConnect;
+window.resetView=resetView; window.resetAll=resetAll;
+
+// ═══════════════════════════════════════
+// NODE PANEL
+// ═══════════════════════════════════════
+let selNode=null, curTab='form';
+function switchTab(t){
+  curTab=t;
+  document.getElementById('panel-body').style.display = t==='form'?'flex':'none';
+  document.getElementById('panel-code').style.display = t==='code'?'flex':'none';
+  document.getElementById('tab-form').classList.toggle('active',t==='form');
+  document.getElementById('tab-code').classList.toggle('active',t==='code');
+  if(t==='code'&&selNode) loadNodeToCode();
+}
+window.switchTab=switchTab;
+
+function openPanel(){ document.getElementById('panel').classList.add('open'); }
+function closePanel(){ document.getElementById('panel').classList.remove('open'); selNode=null; }
+window.closePanel=closePanel;
+
+function openAddNode(){
+  selNode=null;
+  document.getElementById('panel-title').textContent='NEW NODE';
+  document.getElementById('edit-id').value='';
+  document.getElementById('edit-label').value='';
+  document.getElementById('edit-cat').value = CATS[0]?.id||'macro';
+  document.getElementById('edit-size').value=16;
+  document.getElementById('edit-desc').value='';
+  document.getElementById('del-section').style.display='none';
+  switchTab('form'); openPanel();
+}
+window.openAddNode=openAddNode;
+
+function openEdit(n){
+  selNode=n;
+  document.getElementById('panel-title').textContent='EDIT NODE';
+  document.getElementById('edit-id').value=n.id;
+  document.getElementById('edit-label').value=n.label;
+  document.getElementById('edit-cat').value=n.cat;
+  document.getElementById('edit-size').value=n.size||16;
+  document.getElementById('edit-desc').value=n.desc||'';
+  document.getElementById('del-section').style.display='block';
+  // center btn
+  const cb=document.getElementById('btn-center');
+  if(centerNodeId===n.id){ cb.textContent='⌖ 중심: '+n.label; cb.style.borderColor='#51cf66'; cb.style.color='#51cf66'; }
+  else { cb.textContent='⌖ 중심 노드로 설정'; cb.style.borderColor=''; cb.style.color=''; }
+  // edge list - id 대신 라벨 표시
+  const el=document.getElementById('edge-list'); el.innerHTML='';
+  EDGES.filter(e=>e.s===n.id||e.t===n.id).forEach(e=>{
+    const otherId=e.s===n.id?e.t:e.s;
+    const otherNode=NODES.find(n=>n.id===otherId);
+    const otherLabel=otherNode?otherNode.label:otherId;
+    const dir=e.s===n.id?'→':'←';
+    const row=document.createElement('div'); row.className='edge-item';
+    row.innerHTML=`<span>${dir} ${otherLabel}${e.relation?' ('+e.relation+')':''}</span><button class="edge-del" onclick="removeEdge('${e.s}','${e.t}')">✕</button>`;
+    el.appendChild(row);
+  });
+  if(curTab==='code') loadNodeToCode();
+  openPanel();
+}
+
+function labelToId(label, excludeId){
+  let base=label.trim().replace(/\s+/g,'_').replace(/[()·\.\-\/]/g,'');
+  if(!base) base='node';
+  if(!NODES.find(n=>n.id===base&&n.id!==excludeId)) return base;
+  let i=2;
+  while(NODES.find(n=>n.id===base+'_'+i&&n.id!==excludeId)) i++;
+  return base+'_'+i;
+}
+
+function saveNode(){
+  const oldId = document.getElementById('edit-id').value;
+  const label = document.getElementById('edit-label').value.trim() || '새 노드';
+  const cat   = document.getElementById('edit-cat').value;
+  const size  = parseInt(document.getElementById('edit-size').value)||16;
+  const desc  = document.getElementById('edit-desc').value.trim();
+
+  if(oldId){
+    // 기존 노드 수정
+    const newId = labelToId(label, oldId);
+    const ex = NODES.find(n=>n.id===oldId);
+    if(ex){
+      ex.label=label; ex.cat=cat; ex.size=size; ex.desc=desc;
+      // id가 바뀌면 엣지도 같이 업데이트
+      if(newId!==oldId){
+        ex.id=newId;
+        EDGES.forEach(e=>{ if(e.s===oldId)e.s=newId; if(e.t===oldId)e.t=newId; });
+        if(centerNodeId===oldId) centerNodeId=newId;
+        document.getElementById('edit-id').value=newId;
+      }
+    }
+  } else {
+    // 신규 노드
+    const newId = labelToId(label);
+    const n={id:newId,label,cat,desc,size};
+    NODES.push(n); place(n,NODES.length-1,NODES.length); forceFrames=0;
+    document.getElementById('edit-id').value=newId;
+  }
+  save(); closePanel();
+}
+function deleteNode(){
+  const id=document.getElementById('edit-id').value;
+  if(!id||!confirm('"'+document.getElementById('edit-label').value+'" 노드를 삭제할까요?')) return;
+  NODES=NODES.filter(n=>n.id!==id);
+  EDGES=EDGES.filter(e=>e.s!==id&&e.t!==id);
+  if(centerNodeId===id) centerNodeId=null;
+  save(); closePanel();
+}
+function setCenter(){
+  const id=document.getElementById('edit-id').value;
+  const label=document.getElementById('edit-label').value;
+  centerNodeId=id;
+  const cb=document.getElementById('btn-center');
+  cb.textContent='⌖ 중심: '+label; cb.style.borderColor='#51cf66'; cb.style.color='#51cf66';
+}
+function removeEdge(s,t){
+  EDGES=EDGES.filter(e=>!(e.s===s&&e.t===t));
+  save(); if(selNode) openEdit(selNode);
+}
+function loadNodeToCode(){
+  if(!selNode) return;
+  const {id,label,cat,desc,size}=selNode;
+  document.getElementById('node-code-ta').value=JSON.stringify({id,label,cat,desc,size},null,2);
+}
+function applyNodeCode(){
+  try{
+    const d=JSON.parse(document.getElementById('node-code-ta').value.trim());
+    if(!d.label) throw new Error('label은 필수예요');
+    if(selNode){
+      const ex=NODES.find(n=>n.id===selNode.id);
+      if(!ex) throw new Error('노드를 찾을 수 없어요');
+      const oldId=ex.id;
+      const newId=d.id&&d.id!==oldId ? d.id : oldId;
+      // id 변경 시 중복 체크
+      if(newId!==oldId && NODES.find(n=>n.id===newId))
+        throw new Error('이미 같은 id가 있어요: '+newId);
+      // 노드 업데이트
+      ex.id=newId;
+      ex.label=d.label;
+      ex.cat=d.cat||ex.cat;
+      ex.desc=d.desc||'';
+      ex.size=d.size||16;
+      // id 바뀌면 엣지도 업데이트
+      if(newId!==oldId){
+        EDGES.forEach(e=>{ if(e.s===oldId)e.s=newId; if(e.t===oldId)e.t=newId; });
+        if(centerNodeId===oldId) centerNodeId=newId;
+        selNode=ex;
+      }
+      save(); openEdit(ex);
+      alert('✓ 적용됐어요!');
+    } else {
+      if(!d.id) throw new Error('새 노드 추가 시 id는 필수예요');
+      if(NODES.find(n=>n.id===d.id)) throw new Error('이미 같은 id가 있어요: '+d.id);
+      const n={id:d.id,label:d.label,cat:d.cat||CATS[0].id,desc:d.desc||'',size:d.size||16};
+      NODES.push(n); place(n,NODES.length-1,NODES.length); forceFrames=0;
+      save(); alert('✓ 새 노드가 추가됐어요!');
+    }
+  }catch(err){ alert('오류: '+err.message); }
+}
+window.saveNode=saveNode; window.deleteNode=deleteNode; window.setCenter=setCenter;
+window.removeEdge=removeEdge; window.loadNodeToCode=loadNodeToCode; window.applyNodeCode=applyNodeCode;
+
+// ═══════════════════════════════════════
+// EDGE PANEL
+// ═══════════════════════════════════════
+let editEdge=null;
+function openEPanel(e){
+  editEdge=e; selEdge=e;
+  const na=NODES.find(n=>n.id===e.s), nb=NODES.find(n=>n.id===e.t);
+  const src=document.getElementById('ep-src'), tgt=document.getElementById('ep-tgt');
+  src.textContent=na?na.label:e.s; src.style.background='rgba('+hr(catColor(na?.cat))+',0.15)';
+  tgt.textContent=nb?nb.label:e.t; tgt.style.background='rgba('+hr(catColor(nb?.cat))+',0.15)';
+  document.getElementById('ep-w').value=e.w||2;
+  document.getElementById('ep-rel').value=e.relation||'';
+  updateW(e.w||2); setDir(e.dir||'both',true);
+  document.getElementById('epanel').classList.add('open');
+}
+function closeEPanel(){ document.getElementById('epanel').classList.remove('open'); editEdge=null; selEdge=null; }
+window.closeEPanel=closeEPanel;
+
+function setDir(dir, silent){
+  if(!silent&&editEdge) editEdge.dir=dir;
+  ['both','fwd','bwd'].forEach(d=>document.getElementById('dir-'+d).classList.toggle('active',d===dir));
+  document.getElementById('ep-arrow').textContent={both:'↔',fwd:'→',bwd:'←'}[dir]||'↔';
+}
+function updateW(v){ document.getElementById('ep-wval').textContent=v; document.getElementById('ep-wline').style.width=(v*20)+'px'; }
+function setRel(r){ document.getElementById('ep-rel').value=r; }
+function saveEdge(){
+  if(!editEdge) return;
+  editEdge.w=parseInt(document.getElementById('ep-w').value)||2;
+  editEdge.relation=document.getElementById('ep-rel').value.trim();
+  save(); closeEPanel();
+}
+function delEdge(){ if(!editEdge) return; EDGES=EDGES.filter(e=>e!==editEdge); save(); closeEPanel(); }
+function addEdge(s,t){
+  if(EDGES.find(e=>(e.s===s&&e.t===t)||(e.s===t&&e.t===s))) return;
+  EDGES.push({s,t,w:2,dir:'both'}); save(); forceFrames=0;
+}
+window.setDir=setDir; window.updateW=updateW; window.setRel=setRel;
+window.saveEdge=saveEdge; window.delEdge=delEdge;
+
+// ═══════════════════════════════════════
+// CATEGORY MODAL
+// ═══════════════════════════════════════
+function openCatModal(){ renderCats(); document.getElementById('catmodal').classList.add('open'); }
+function closeCatModal(){ document.getElementById('catmodal').classList.remove('open'); syncUI(); save(); }
+window.openCatModal=openCatModal; window.closeCatModal=closeCatModal;
+function renderCats(){
+  const el=document.getElementById('cat-list'); el.innerHTML='';
+  CATS.forEach((c,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(74,158,255,.05);border-radius:3px;';
+    row.innerHTML=`<input type="color" value="${c.color}" onchange="CATS[${i}].color=this.value;renderCats();" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:2px;">
+<input value="${c.label}" onchange="CATS[${i}].label=this.value" style="flex:1;background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);color:#e8f4ff;padding:5px 8px;font-size:12px;border-radius:3px;outline:none;">
+<span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;">${NODES.filter(n=>n.cat===c.id).length}개</span>
+${CATS.length>1?`<button onclick="delCat('${c.id}')" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>`:''}`;
+    el.appendChild(row);
+  });
+}
+function addCat(){
+  const label=document.getElementById('new-cat-label').value.trim();
+  if(!label) return;
+  CATS.push({id:'cat_'+Date.now(),label,color:document.getElementById('new-cat-color').value});
+  document.getElementById('new-cat-label').value='';
+  renderCats();
+}
+function delCat(id){
+  const count=NODES.filter(n=>n.cat===id).length;
+  if(count>0&&!confirm(`노드 ${count}개가 첫 번째 카테고리로 이동됩니다. 계속할까요?`)) return;
+  const fb=CATS.find(c=>c.id!==id)?.id;
+  NODES.forEach(n=>{ if(n.cat===id) n.cat=fb; });
+  CATS=CATS.filter(c=>c.id!==id);
+  renderCats();
+}
+window.addCat=addCat; window.delCat=delCat;
+
+// ═══════════════════════════════════════
+// SAVE / LOAD
+// ═══════════════════════════════════════
+function openSaveLoad(){
+  document.getElementById('save-name').value='ontology_'+new Date().toISOString().slice(0,10);
+  document.getElementById('code-ta').value='';
+  document.getElementById('savemodal').classList.add('open');
+}
+function closeSL(){ document.getElementById('savemodal').classList.remove('open'); }
+window.openSaveLoad=openSaveLoad; window.closeSL=closeSL;
+
+function saveFile(){
+  const name=document.getElementById('save-name').value.trim()||'ontology_'+new Date().toISOString().slice(0,10);
+  const filename=name.endsWith('.json')?name:name+'.json';
+  const data={
+    version:SCHEMA_VERSION,
+    centerNodeId:centerNodeId||null,
+    categories:CATS,
+    nodes:NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+    edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+  };
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download=filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  closeSL();
+}
+function loadFile(){
+  const fi=document.getElementById('file-input');
+  fi.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{ try{ applyData(JSON.parse(ev.target.result)); }catch(err){ alert('파일 오류: '+err.message); } fi.value=''; };
+    reader.readAsText(file);
+  };
+  fi.click();
+}
+function codeFromCurrent(){
+  const data={
+    version:SCHEMA_VERSION,
+    centerNodeId:centerNodeId||null,
+    categories:CATS,
+    nodes:NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+    edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+  };
+  document.getElementById('code-ta').value=JSON.stringify(data,null,2);
+}
+function applyCode(){
+  const raw=document.getElementById('code-ta').value.trim();
+  if(!raw){ alert('코드가 비어있어요'); return; }
+  try{ applyData(JSON.parse(raw)); }catch(err){ alert('오류: '+err.message); }
+}
+// ═══════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════
+let searchHighlight = new Set(); // 하이라이트할 노드 id들
+
+function openSearch(){
+  document.getElementById('searchmodal').classList.add('open');
+  setTimeout(()=>document.getElementById('search-input').focus(), 100);
+  doSearch('');
+}
+function closeSearch(){
+  document.getElementById('searchmodal').classList.remove('open');
+  searchHighlight.clear();
+  document.getElementById('search-input').value='';
+}
+window.openSearch=openSearch; window.closeSearch=closeSearch;
+
+function doSearch(q){
+  q = q.trim().toLowerCase();
+  searchHighlight.clear();
+  const el = document.getElementById('search-results');
+  el.innerHTML = '';
+
+  if(!q){
+    el.innerHTML='<div style="padding:16px;text-align:center;font-family:\'Space Mono\',monospace;font-size:10px;color:#4a6a8a;">검색어를 입력하세요</div>';
+    return;
+  }
+
+  // 각 노드에 대해 매치 점수 계산
+  const results = [];
+  NODES.forEach(n=>{
+    const matches = [];
+    const label = n.label||'';
+    const desc  = n.desc||'';
+
+    // 노드명 매치
+    if(label.toLowerCase().includes(q))
+      matches.push({type:'label', text:'이름: '+label});
+
+    // 설명 매치
+    if(desc.toLowerCase().includes(q)){
+      // 매치된 부분 주변 텍스트 추출
+      const idx = desc.toLowerCase().indexOf(q);
+      const snippet = desc.slice(Math.max(0,idx-15), idx+q.length+25);
+      matches.push({type:'desc', text:'설명: ...'+snippet+'...'});
+    }
+
+    // 연결된 엣지 relation 매치
+    EDGES.filter(e=>e.s===n.id||e.t===n.id).forEach(e=>{
+      if(e.relation && e.relation.toLowerCase().includes(q)){
+        const otherId = e.s===n.id?e.t:e.s;
+        const otherNode = NODES.find(x=>x.id===otherId);
+        const otherLabel = otherNode?otherNode.label:otherId;
+        const dir = e.s===n.id?'→':'←';
+        matches.push({type:'edge', text:`연결 (${e.relation}): ${dir} ${otherLabel}`});
+      }
+      // 연결된 노드명도 검색
+      const otherId = e.s===n.id?e.t:e.s;
+      const otherNode = NODES.find(x=>x.id===otherId);
+      if(otherNode && otherNode.label.toLowerCase().includes(q) && !label.toLowerCase().includes(q)){
+        const dir = e.s===n.id?'→':'←';
+        matches.push({type:'edge', text:`연결 노드: ${dir} ${otherNode.label}`});
+      }
+    });
+
+    if(matches.length){
+      results.push({node:n, matches});
+      searchHighlight.add(n.id);
+    }
+  });
+
+  if(!results.length){
+    el.innerHTML='<div style="padding:16px;text-align:center;font-family:\'Space Mono\',monospace;font-size:10px;color:#4a6a8a;">검색 결과 없음</div>';
+    return;
+  }
+
+  // 결과 렌더
+  results.forEach(({node:n, matches})=>{
+    const col = catColor(n.cat);
+    const item = document.createElement('div');
+    item.style.cssText='padding:10px 16px;cursor:pointer;border-bottom:1px solid rgba(74,158,255,.06);transition:background .15s;';
+    item.onmouseenter=()=>item.style.background='rgba(74,158,255,.08)';
+    item.onmouseleave=()=>item.style.background='';
+    item.onclick=()=>{ focusNode(n); };
+
+    const typeColors = {label:'#4a9eff', desc:'#8aaccc', edge:'#ff922b'};
+    const matchHtml = matches.map(m=>`
+      <div style="font-size:10px;color:${typeColors[m.type]||'#8aaccc'};margin-top:3px;opacity:.85;">
+        ${highlight(m.text, q)}
+      </div>`).join('');
+
+    item.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+        <span style="font-size:13px;font-weight:700;color:#e8f4ff;">${highlight(n.label,q)}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-left:auto;">${catLabel(n.cat)}</span>
+      </div>
+      ${matchHtml}
+    `;
+    el.appendChild(item);
+  });
+
+  // 결과 수 표시
+  const cnt = document.createElement('div');
+  cnt.style.cssText='padding:8px 16px;font-family:\'Space Mono\',monospace;font-size:9px;color:#4a6a8a;border-top:1px solid rgba(74,158,255,.1);';
+  cnt.textContent = results.length+'개 노드 발견';
+  el.appendChild(cnt);
+}
+
+function highlight(text, q){
+  if(!q) return text;
+  const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')', 'gi');
+  return text.replace(re,'<mark style="background:rgba(74,158,255,.3);color:#e8f4ff;border-radius:2px;padding:0 2px;">$1</mark>');
+}
+
+function focusNode(n){
+  // 해당 노드를 화면 중앙으로
+  const dx=-n.x, dy=-n.y, dz=-n.z;
+  NODES.forEach(m=>{ m.x+=dx; m.y+=dy; m.z+=dz; m.vx=m.vy=m.vz=0; });
+  panX=0; panY=0;
+  // 패널 열기
+  closeSearch();
+  openEdit(n);
+}
+window.doSearch=doSearch;
+
+window.saveFile=saveFile; window.loadFile=loadFile;
+window.codeFromCurrent=codeFromCurrent; window.applyCode=applyCode;
+
+function applyData(data){
+  if(!data||!Array.isArray(data.nodes)||!data.nodes.length)
+    throw new Error('nodes 배열이 없거나 비어있어요');
+  const fv = data.version||1;
+  if(fv>SCHEMA_VERSION && !confirm(`더 최신 버전(v${fv}) 파일이에요. 계속 열까요?`)) return;
+  CATS  = (Array.isArray(data.categories)&&data.categories.length) ? JSON.parse(JSON.stringify(data.categories)) : JSON.parse(JSON.stringify(DEF_CATS));
+  NODES = data.nodes.map((n,i)=>({ id:n.id||('n'+i), label:n.label||'노드', cat:n.cat||CATS[0].id, desc:n.desc||'', size:n.size||16, x:0,y:0,z:0, vx:0,vy:0,vz:0, sx:0,sy:0, pscale:.75, depth:0 }));
+  for(let i=0;i<NODES.length;i++) place(NODES[i],i,NODES.length);
+  EDGES = Array.isArray(data.edges) ? data.edges.map(e=>({ s:e.s,t:e.t,w:e.w||2, ...(e.relation?{relation:e.relation}:{}), ...(e.dir?{dir:e.dir}:{}) })) : [];
+  forceFrames=0; activeFilter='all';
+  centerNodeId = data.centerNodeId || null;
+  hovered=null; selEdge=null; editEdge=null; selNode=null;
+  closePanel(); closeEPanel(); closeSL();
+  save(); syncUI();
+  alert('✓ '+NODES.length+'개 노드, '+EDGES.length+'개 엣지 불러왔어요! (schema v'+fv+')');
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function ha(hex,a){ if(!hex||hex.length<7) return`rgba(74,158,255,${a})`; return`rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`; }
+function hr(hex){ if(!hex||hex.length<7) return'74,158,255'; return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`; }
+
+// ═══════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
+
+  // project
+  NODES.forEach(n=>{
+    const p=proj(n.x,n.y,n.z);
+    n.sx=p.sx+panX; n.sy=p.sy+panY; n.pscale=p.sc; n.depth=p.depth;
+  });
+  const cx=W/2, cy=H/2;
+
+  // edges
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b) return;
+    const av=visible(a), bv=visible(b);
+    if(!av&&!bv) return;
+    const isH=hovered&&(hovered.id===a.id||hovered.id===b.id);
+    const isS=selEdge===e;
+    const w=e.w||2;
+    const ba=(av&&bv)?0.15*w:.04;
+    const la=isS?.95:isH?Math.min(ba*4,.85):ba;
+    const lw=isS?3:isH?1.8:.6+w*.2;
+    const ca=catColor(a.cat), cb=catColor(b.cat);
+    const ax=a.sx+cx,ay=a.sy+cy,bx=b.sx+cx,by=b.sy+cy;
+
+    const g=ctx.createLinearGradient(ax,ay,bx,by);
+    g.addColorStop(0,ha(isS?'#ff922b':ca,la));
+    g.addColorStop(1,ha(isS?'#ff922b':cb,la));
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
+    ctx.strokeStyle=g; ctx.lineWidth=lw; ctx.stroke();
+
+    // arrows
+    if(isS||isH){
+      const dir=e.dir||'both';
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      const ang=Math.atan2(by-ay,bx-ax), as=isS?9:6;
+      const ac=isS?'rgba(255,146,43,.9)':ha(ca,.7);
+      ctx.save(); ctx.translate(mx,my);
+      if(dir==='fwd'||dir==='both'){
+        ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(as,0); ctx.lineTo(-as*.6,as*.5); ctx.lineTo(-as*.6,-as*.5); ctx.closePath();
+        ctx.fillStyle=ac; ctx.fill();
+        ctx.setTransform(1,0,0,1,0,0); ctx.translate(mx,my);
+      }
+      if(dir==='bwd'||dir==='both'){
+        ctx.rotate(ang+Math.PI);
+        ctx.beginPath(); ctx.moveTo(as,0); ctx.lineTo(-as*.6,as*.5); ctx.lineTo(-as*.6,-as*.5); ctx.closePath();
+        ctx.fillStyle=ac; ctx.fill();
+      }
+      ctx.restore();
+      if(isS){ ctx.fillStyle='rgba(255,146,43,.7)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('탭→편집',mx,(ay+by)/2-16); }
+    }
+    // relation label
+    if(e.relation&&av&&bv){
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      const la2=isS?1:isH?.9:Math.min(ba*2,.4);
+      ctx.save();
+      ctx.font="10px 'Noto Sans KR'"; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const tw=ctx.measureText(e.relation).width;
+      ctx.fillStyle=`rgba(4,8,20,${la2*.9})`; ctx.fillRect(mx-tw/2-4,my-8,tw+8,16);
+      ctx.fillStyle=`rgba(255,146,43,${la2})`; ctx.fillText(e.relation,mx,my);
+      ctx.restore();
+    }
+  });
+
+  // connect preview
+  if(connecting&&connectSrc){
+    ctx.beginPath(); ctx.moveTo(connectSrc.sx+cx,connectSrc.sy+cy); ctx.lineTo(lastX,lastY);
+    ctx.strokeStyle='rgba(74,158,255,.5)'; ctx.lineWidth=1.5; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // nodes
+  [...NODES].sort((a,b)=>a.depth-b.depth).forEach(n=>{
+    const vis=visible(n);
+    const isH=hovered&&hovered.id===n.id;
+    const isSearch=searchHighlight.size>0&&searchHighlight.has(n.id);
+    const isSrc=connectSrc&&connectSrc.id===n.id;
+    const r=(n.size||16)*n.pscale*(isH||isSrc||isSearch?1.35:1);
+    const al=vis?(searchHighlight.size>0&&!isSearch?.15:1):.1;
+    const col=catColor(n.cat);
+    const x=n.sx+cx, y=n.sy+cy;
+
+    if(vis){
+      const gw=ctx.createRadialGradient(x,y,0,x,y,r*3.2);
+      gw.addColorStop(0,ha(col,isSrc?.4:isSearch?.35:isH?.22:.09));
+      gw.addColorStop(1,ha(col,0));
+      ctx.beginPath(); ctx.arc(x,y,r*3.2,0,Math.PI*2); ctx.fillStyle=gw; ctx.fill();
+    }
+    const ng=ctx.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r);
+    ng.addColorStop(0,ha(col,al)); ng.addColorStop(.6,ha(col,al*.7)); ng.addColorStop(1,ha(col,al*.2));
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=ng; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.strokeStyle=ha(col,vis?(isSrc?1:isH?.95:.6):.1);
+    ctx.lineWidth=isSrc?2.5:isH?2:.8; ctx.stroke();
+
+    if(vis&&r>5){
+      ctx.fillStyle=`rgba(232,244,255,${isH?1:Math.min(1,r/8)})`;
+      ctx.font=`${isH?'bold ':''} ${Math.max(9,Math.min(13,r*1.1))}px 'Noto Sans KR'`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(n.label,x,y+r+10);
+    }
+    if(isSrc){ ctx.fillStyle='rgba(74,158,255,.9)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('SOURCE',x,y-r-8); }
+  });
+
+  document.getElementById('nc').textContent=NODES.filter(visible).length;
+  document.getElementById('ec').textContent=EDGES.filter(e=>{ const a=NODES.find(n=>n.id===e.s),b=NODES.find(n=>n.id===e.t); return a&&b&&visible(a)&&visible(b); }).length;
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+tryLoad();
+placeAll();
+syncUI();
+
+function loop(){
+  if(forceFrames<140){ forceStep(); forceFrames++; }
+  if(autoRotate) camY+=.003;
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
