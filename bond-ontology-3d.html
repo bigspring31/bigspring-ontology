@@ -87,7 +87,8 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
 .rel-chips{display:flex;flex-wrap:wrap;gap:5px;}
 .chip{background:rgba(255,146,43,.08);border:1px solid rgba(255,146,43,.25);color:#ff922b;padding:4px 9px;font-size:11px;cursor:pointer;border-radius:12px;transition:all .15s;}
 .chip:hover{background:rgba(255,146,43,.25);}
-.wline{height:3px;background:#ff922b;border-radius:2px;transition:width .15s;}
+.sent-btn{flex:1;background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.15);color:#6a8aaa;padding:5px 2px;font-size:10px;cursor:pointer;border-radius:3px;transition:all .15s;text-align:center;}
+.sent-btn.active{background:rgba(74,158,255,.2);border-color:#4a9eff;color:#e8f4ff;}
 .wval{font-family:'Space Mono',monospace;font-size:11px;color:#ff922b;width:20px;text-align:right;}
 
 /* MODALS */
@@ -118,11 +119,19 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
 <body>
 <canvas id="c"></canvas>
 
-<div id="header"><h1>Knowledge Ontology · 3D</h1><h2>채권 & 거시경제</h2></div>
+<div id="header">
+  <h1>Knowledge Ontology · 3D</h1>
+  <div onclick="startEditTitle()" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;border:1px solid transparent;transition:all .2s;" onmouseenter="this.style.borderColor='rgba(74,158,255,.3)';this.style.background='rgba(74,158,255,.07)'" onmouseleave="this.style.borderColor='transparent';this.style.background=''">
+    <h2 id="graph-title" style="margin:0;pointer-events:none;">채권 & 거시경제</h2>
+    <span style="font-size:11px;color:rgba(74,158,255,.4);pointer-events:none;">✎</span>
+  </div>
+  <input id="title-input" style="display:none;font-size:20px;font-weight:700;color:#e8f4ff;background:none;border:none;border-bottom:1px solid #4a9eff;outline:none;width:280px;margin-top:2px;" onblur="saveTitle()" onkeydown="if(event.key==='Enter')saveTitle()">
+</div>
 
 <div id="toolbar">
   <button class="tb-btn active" id="btn-rotate" onclick="toggleRotate()">⟳ 자동회전</button>
   <button class="tb-btn" onclick="resetView()">⌖ 뷰 초기화</button>
+  <button class="tb-btn" onclick="captureCanvas()">📷 캡처</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" onclick="openSearch()">🔍 검색</button>
   <button class="tb-btn" onclick="openAddNode()">＋ 노드 추가</button>
@@ -130,8 +139,9 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
   <button class="tb-btn" onclick="openCatModal()">◈ 카테고리</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" onclick="openSaveLoad()">💾 저장 / 불러오기</button>
+  <button class="tb-btn" onclick="copyHTML()">⧉ HTML 복사</button>
   <div class="tb-sep"></div>
-  <button class="tb-btn danger" onclick="resetAll()">↺ 초기화</button>
+  <button class="tb-btn danger" onclick="resetAll()" style="font-size:9px;padding:5px 8px;opacity:.7;letter-spacing:0;width:50%;">↺ 초기화</button>
 </div>
 
 <div id="filters"></div>
@@ -153,6 +163,16 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
     <input type="hidden" id="edit-id">
     <div><div class="fl">LABEL</div><input class="fi" id="edit-label" placeholder="노드 이름"></div>
     <div><div class="fl">CATEGORY</div><select class="fi" id="edit-cat"></select></div>
+    <div>
+      <div class="fl">SENTIMENT</div>
+      <div style="display:flex;gap:6px;">
+        <button class="sent-btn" id="sent-none"  onclick="setSent('')"    >—</button>
+        <button class="sent-btn" id="sent-good"  onclick="setSent('good')" >✅ good</button>
+        <button class="sent-btn" id="sent-ok"    onclick="setSent('ok')"   >🔘 not bad</button>
+        <button class="sent-btn" id="sent-bad"   onclick="setSent('bad')"  >🔴 bad</button>
+        <button class="sent-btn" id="sent-warn"  onclick="setSent('warn')" >⚠️ 주의</button>
+      </div>
+    </div>
     <div><div class="fl">SIZE</div><input class="fi" id="edit-size" type="number" min="8" max="40" value="16"></div>
     <div><div class="fl">DESCRIPTION</div><textarea class="fi" id="edit-desc" placeholder="개념 설명"></textarea></div>
     <button class="pb blue" onclick="saveNode()">저장</button>
@@ -387,9 +407,10 @@ function save(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       version: SCHEMA_VERSION,
+      title: document.getElementById('graph-title').textContent,
       centerNodeId: centerNodeId||null,
       categories: CATS,
-      nodes: NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+      nodes: NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
       edges: EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
     }));
   }catch(e){}
@@ -404,6 +425,7 @@ function tryLoad(){
     NODES = d.nodes;
     EDGES = d.edges || [];
     centerNodeId = d.centerNodeId || null;
+    if(d.title){ document.getElementById('graph-title').textContent=d.title; document.title=d.title; }
     return true;
   }catch(e){ return false; }
 }
@@ -469,42 +491,66 @@ function proj(x,y,z){
 // ═══════════════════════════════════════
 // UI SYNC
 // ═══════════════════════════════════════
-let activeFilter = 'all';
+const SENTIMENTS={
+  good: {emoji:'✅', label:'good',    color:'#51cf66'},
+  ok:   {emoji:'🔘', label:'not bad', color:'#8a9aaa'},
+  bad:  {emoji:'🔴', label:'bad',     color:'#ff6b6b'},
+  warn: {emoji:'⚠️', label:'주의',    color:'#ff922b'},
+};
+
+let activeFilter='all';
+let sentFilter='all'; // 'all' or sentiment key
+
 function syncUI(){
-  // filters
-  const fEl = document.getElementById('filters');
-  fEl.innerHTML = '';
-  const ab = document.createElement('button');
-  ab.className = 'f-btn' + (activeFilter==='all'?' active':'');
-  ab.textContent = '전체';
-  ab.onclick = ()=>{ activeFilter='all'; syncUI(); };
+  // 카테고리 필터
+  const fEl=document.getElementById('filters');
+  fEl.innerHTML='';
+  const ab=document.createElement('button');
+  ab.className='f-btn'+(activeFilter==='all'&&sentFilter==='all'?' active':'');
+  ab.textContent='전체';
+  ab.onclick=()=>{ activeFilter='all'; sentFilter='all'; syncUI(); };
   fEl.appendChild(ab);
   CATS.forEach(c=>{
-    const b = document.createElement('button');
-    b.className = 'f-btn' + (activeFilter===c.id?' active':'');
-    b.textContent = c.label;
+    const b=document.createElement('button');
+    b.className='f-btn'+(activeFilter===c.id?' active':'');
+    b.textContent=c.label;
     if(activeFilter===c.id){ b.style.borderColor=c.color; b.style.color=c.color; }
-    b.onclick = ()=>{ activeFilter=c.id; syncUI(); };
+    b.onclick=()=>{ activeFilter=c.id; sentFilter='all'; syncUI(); };
     fEl.appendChild(b);
   });
-  // legend
-  const lEl = document.getElementById('legend');
-  lEl.innerHTML = '';
+  // sentiment 필터
+  const sep=document.createElement('span');
+  sep.style.cssText='color:rgba(74,158,255,.2);padding:0 2px;align-self:center;font-size:14px;';
+  sep.textContent='|';
+  fEl.appendChild(sep);
+  Object.entries(SENTIMENTS).forEach(([k,s])=>{
+    const b=document.createElement('button');
+    b.className='f-btn'+(sentFilter===k?' active':'');
+    b.textContent=s.emoji+' '+s.label;
+    if(sentFilter===k){ b.style.borderColor=s.color; b.style.color=s.color; }
+    b.onclick=()=>{ sentFilter=k; activeFilter='all'; syncUI(); };
+    fEl.appendChild(b);
+  });
+  // 레전드
+  const lEl=document.getElementById('legend');
+  lEl.innerHTML='';
   CATS.forEach(c=>{
-    const d = document.createElement('div'); d.className='leg';
-    d.innerHTML = `<div class="leg-dot" style="background:${c.color}"></div>${c.label}`;
+    const d=document.createElement('div'); d.className='leg';
+    d.innerHTML=`<div class="leg-dot" style="background:${c.color}"></div>${c.label}`;
     lEl.appendChild(d);
   });
-  // category select in node panel
-  const sel = document.getElementById('edit-cat');
+  // 카테고리 셀렉트
+  const sel=document.getElementById('edit-cat');
   if(sel){
-    const cur = sel.value;
-    sel.innerHTML = '';
+    const cur=sel.value; sel.innerHTML='';
     CATS.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.label; sel.appendChild(o); });
     if(CATS.find(c=>c.id===cur)) sel.value=cur;
   }
 }
-function visible(n){ return activeFilter==='all' || n.cat===activeFilter; }
+function visible(n){
+  if(sentFilter!=='all') return n.sentiment===sentFilter;
+  return activeFilter==='all'||n.cat===activeFilter;
+}
 
 // ═══════════════════════════════════════
 // INPUT
@@ -614,6 +660,57 @@ canvas.addEventListener('touchend',   e=>{ e.preventDefault(); onUp(e);   },{pas
 // TOOLBAR ACTIONS
 // ═══════════════════════════════════════
 function toggleRotate(){ autoRotate=!autoRotate; document.getElementById('btn-rotate').classList.toggle('active',autoRotate); }
+
+// 제목 편집
+function startEditTitle(){
+  const t=document.getElementById('graph-title');
+  const i=document.getElementById('title-input');
+  i.value=t.textContent;
+  t.style.display='none'; i.style.display='inline-block';
+  i.focus(); i.select();
+}
+function saveTitle(){
+  const t=document.getElementById('graph-title');
+  const i=document.getElementById('title-input');
+  const v=i.value.trim()||'온톨로지';
+  t.textContent=v; t.style.display=''; i.style.display='none';
+  document.title=v;
+  save();
+}
+window.startEditTitle=startEditTitle; window.saveTitle=saveTitle;
+
+// 캡처
+function captureCanvas(){
+  const link=document.createElement('a');
+  link.download='ontology_'+new Date().toISOString().slice(0,10)+'.png';
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+}
+function copyHTML(){
+  const html=document.documentElement.outerHTML;
+  navigator.clipboard.writeText(html)
+    .then(()=>alert('✓ HTML 전체가 클립보드에 복사됐어요!\n붙여넣기(Ctrl+V)해서 .html 파일로 저장하세요.'))
+    .catch(()=>{
+      // fallback
+      const ta=document.createElement('textarea');
+      ta.value=html; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('✓ HTML 전체가 클립보드에 복사됐어요!');
+    });
+}
+window.captureCanvas=captureCanvas; window.copyHTML=copyHTML;
+
+// Sentiment
+let editSent='';
+function setSent(v){
+  editSent=v;
+  ['none','good','ok','bad','warn'].forEach(k=>{
+    document.getElementById('sent-'+k).classList.toggle('active', v===(k==='none'?'':k));
+  });
+}
+window.setSent=setSent;
 function toggleConnect(){
   connecting=!connecting; connectSrc=null;
   document.getElementById('btn-connect').classList.toggle('active',connecting);
@@ -663,6 +760,7 @@ function openAddNode(){
   document.getElementById('edit-cat').value = CATS[0]?.id||'macro';
   document.getElementById('edit-size').value=16;
   document.getElementById('edit-desc').value='';
+  setSent('');
   document.getElementById('del-section').style.display='none';
   switchTab('form'); openPanel();
 }
@@ -676,6 +774,7 @@ function openEdit(n){
   document.getElementById('edit-cat').value=n.cat;
   document.getElementById('edit-size').value=n.size||16;
   document.getElementById('edit-desc').value=n.desc||'';
+  setSent(n.sentiment||'');
   document.getElementById('del-section').style.display='block';
   // center btn
   const cb=document.getElementById('btn-center');
@@ -711,13 +810,14 @@ function saveNode(){
   const cat   = document.getElementById('edit-cat').value;
   const size  = parseInt(document.getElementById('edit-size').value)||16;
   const desc  = document.getElementById('edit-desc').value.trim();
+  const sentiment = editSent||'';
 
   if(oldId){
     // 기존 노드 수정
     const newId = labelToId(label, oldId);
     const ex = NODES.find(n=>n.id===oldId);
     if(ex){
-      ex.label=label; ex.cat=cat; ex.size=size; ex.desc=desc;
+      ex.label=label; ex.cat=cat; ex.size=size; ex.desc=desc; ex.sentiment=sentiment;
       // id가 바뀌면 엣지도 같이 업데이트
       if(newId!==oldId){
         ex.id=newId;
@@ -729,7 +829,7 @@ function saveNode(){
   } else {
     // 신규 노드
     const newId = labelToId(label);
-    const n={id:newId,label,cat,desc,size};
+    const n={id:newId,label,cat,desc,size,...(sentiment?{sentiment}:{})};
     NODES.push(n); place(n,NODES.length-1,NODES.length); forceFrames=0;
     document.getElementById('edit-id').value=newId;
   }
@@ -889,14 +989,32 @@ function saveFile(){
     version:SCHEMA_VERSION,
     centerNodeId:centerNodeId||null,
     categories:CATS,
-    nodes:NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+    nodes:NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
     edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
   };
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  a.download=filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const json=JSON.stringify(data,null,2);
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  if(isIOS){
+    const win=window.open('','_blank');
+    if(win){
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${filename}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;background:#04080f;color:#c8d8e8;font-family:sans-serif;}
+.bar{position:sticky;top:0;background:#0a1428;border-bottom:1px solid rgba(74,158,255,.3);padding:12px 16px;font-size:13px;color:#4a9eff;display:flex;align-items:center;gap:10px;}
+.bar b{color:#e8f4ff;}
+.hint{font-size:11px;color:#6a8aaa;margin-top:2px;}
+pre{padding:16px;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;}</style></head>
+<body><div class="bar">📋 <div><b>${filename}</b><div class="hint">공유 버튼(□↑) → 파일에 저장 · 또는 전체선택 후 복사</div></div></div>
+<pre>${json.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</pre></body></html>`);
+      win.document.close();
+    }
+  } else {
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
   closeSL();
 }
 function loadFile(){
@@ -914,7 +1032,7 @@ function codeFromCurrent(){
     version:SCHEMA_VERSION,
     centerNodeId:centerNodeId||null,
     categories:CATS,
-    nodes:NODES.map(({id,label,cat,desc,size})=>({id,label,cat,desc,size})),
+    nodes:NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
     edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
   };
   document.getElementById('code-ta').value=JSON.stringify(data,null,2);
@@ -1059,11 +1177,12 @@ function applyData(data){
   const fv = data.version||1;
   if(fv>SCHEMA_VERSION && !confirm(`더 최신 버전(v${fv}) 파일이에요. 계속 열까요?`)) return;
   CATS  = (Array.isArray(data.categories)&&data.categories.length) ? JSON.parse(JSON.stringify(data.categories)) : JSON.parse(JSON.stringify(DEF_CATS));
-  NODES = data.nodes.map((n,i)=>({ id:n.id||('n'+i), label:n.label||'노드', cat:n.cat||CATS[0].id, desc:n.desc||'', size:n.size||16, x:0,y:0,z:0, vx:0,vy:0,vz:0, sx:0,sy:0, pscale:.75, depth:0 }));
+  NODES = data.nodes.map((n,i)=>({ id:n.id||('n'+i), label:n.label||'노드', cat:n.cat||CATS[0].id, desc:n.desc||'', size:n.size||16, ...(n.sentiment?{sentiment:n.sentiment}:{}), x:0,y:0,z:0, vx:0,vy:0,vz:0, sx:0,sy:0, pscale:.75, depth:0 }));
   for(let i=0;i<NODES.length;i++) place(NODES[i],i,NODES.length);
   EDGES = Array.isArray(data.edges) ? data.edges.map(e=>({ s:e.s,t:e.t,w:e.w||2, ...(e.relation?{relation:e.relation}:{}), ...(e.dir?{dir:e.dir}:{}) })) : [];
-  forceFrames=0; activeFilter='all';
+  forceFrames=0; activeFilter='all'; sentFilter='all';
   centerNodeId = data.centerNodeId || null;
+  if(data.title){ document.getElementById('graph-title').textContent=data.title; document.title=data.title; }
   hovered=null; selEdge=null; editEdge=null; selNode=null;
   closePanel(); closeEPanel(); closeSL();
   save(); syncUI();
@@ -1180,6 +1299,12 @@ function draw(){
       ctx.font=`${isH?'bold ':''} ${Math.max(9,Math.min(13,r*1.1))}px 'Noto Sans KR'`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillText(n.label,x,y+r+10);
+    }
+    // sentiment 이모티콘
+    if(n.sentiment&&SENTIMENTS[n.sentiment]){
+      ctx.font=`${Math.max(10,Math.min(16,r*.9))}px sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(SENTIMENTS[n.sentiment].emoji,x,y-r-8);
     }
     if(isSrc){ ctx.fillStyle='rgba(74,158,255,.9)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('SOURCE',x,y-r-8); }
   });
