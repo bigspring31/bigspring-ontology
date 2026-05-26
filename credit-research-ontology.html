@@ -2161,7 +2161,7 @@ function applyResearchData(){
       n.researched = false;
       // 리서치 안된 그룹 노드는 desc 텍스트 비움 (기본 지분정보만 유지)
       // 계열사 노드는 완전히 비움
-      if(n.id.includes('__')){
+      if(isAffiliate(n)){
         n.desc = '';
       }
     }
@@ -2180,6 +2180,7 @@ function save(){
       version: SCHEMA_VERSION,
       title: document.getElementById('graph-title').textContent,
       centerNodeId: centerNodeId||null,
+      expandedGroups: [...expandedGroups],
       categories: CATS,
       nodes: NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
       edges: EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
@@ -2196,6 +2197,7 @@ function tryLoad(){
     NODES = d.nodes;
     EDGES = d.edges || [];
     centerNodeId = d.centerNodeId || null;
+    if(d.expandedGroups) d.expandedGroups.forEach(id=>expandedGroups.add(id));
     if(d.title){ document.getElementById('graph-title').textContent=d.title; document.title=d.title; }
     return true;
   }catch(e){ return false; }
@@ -2211,54 +2213,82 @@ function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = win
 resize();
 window.addEventListener('resize', resize);
 
+// ═══════════════════════════════════════
+// 배치 (고정 구면 배치, force 없음)
+// ═══════════════════════════════════════
+// 펼쳐진 그룹 Set
+const expandedGroups = new Set();
+
+function isAffiliate(n){ return n.id.includes('__'); }
+function getParentId(n){ return n.id.split('__')[0]; }
+
 function place(n, i, total){
   const phi   = Math.acos(1 - 2*(i+.5)/Math.max(total,1));
   const theta = Math.PI*(1+Math.sqrt(5))*i;
-  // 노드 수에 따라 반경 동적 조정
-  const baseR = total > 200 ? 600 : total > 50 ? 380 : 240;
-  const r     = baseR + Math.random()*120;
+  // 섹터/크레딧/채권/리스크: 안쪽 구
+  const isConcept = ['sector','credit','bond','risk'].includes(n.cat);
+  const baseR = isConcept ? 180 : 480;
+  const r = baseR + Math.random()*60;
   n.x = r*Math.sin(phi)*Math.cos(theta);
   n.y = r*Math.sin(phi)*Math.sin(theta);
   n.z = r*Math.cos(phi);
   n.vx = n.vy = n.vz = 0;
   n.sx = n.sy = 0; n.pscale = .75; n.depth = 0;
 }
-function placeAll(){ NODES.forEach((n,i)=>place(n,i,NODES.length)); }
 
-let forceFrames = 0;
-function forceStep(){
-  const k=220, rep=32000, damp=.82;
-  const N = NODES.length;
-  // 노드 수가 많으면 부분 샘플링으로 성능 유지
-  const sampleRate = N > 300 ? 0.25 : N > 100 ? 0.5 : 1.0;
-  for(let i=0;i<N;i++){
-    let fx=0,fy=0,fz=0;
-    for(let j=0;j<N;j++){
-      if(i===j) continue;
-      if(sampleRate < 1 && Math.random() > sampleRate) continue;
-      const dx=NODES[i].x-NODES[j].x, dy=NODES[i].y-NODES[j].y, dz=NODES[i].z-NODES[j].z;
-      const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=rep/(d*d);
-      fx+=f*dx/d; fy+=f*dy/d; fz+=f*dz/d;
-    }
-    fx -= NODES[i].x*.0005; fy -= NODES[i].y*.0005; fz -= NODES[i].z*.0005;
-    NODES[i]._fx=fx; NODES[i]._fy=fy; NODES[i]._fz=fz;
-  }
-  // 엣지 인력도 노드 맵으로 최적화
+function placeAll(){
+  // 그룹 노드만 배치 (계열사 제외)
+  const groupNodes = NODES.filter(n => !isAffiliate(n));
+  groupNodes.forEach((n,i) => place(n, i, groupNodes.length));
+  // 계열사는 부모 근처에 배치
+  placeAffiliates();
+}
+
+function placeAffiliates(){
+  // 부모 nodeMap 미리 구성
   const nodeMap = {};
-  NODES.forEach(n=>{ nodeMap[n.id]=n; });
-  EDGES.forEach(e=>{
-    const a=nodeMap[e.s], b=nodeMap[e.t];
-    if(!a||!b) return;
-    const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
-    const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=(d-k)*.012*(e.w||2);
-    a._fx+=f*dx/d; a._fy+=f*dy/d; a._fz+=f*dz/d;
-    b._fx-=f*dx/d; b._fy-=f*dy/d; b._fz-=f*dz/d;
-  });
-  NODES.forEach(n=>{
-    n.vx=(n.vx+(n._fx||0))*damp; n.vy=(n.vy+(n._fy||0))*damp; n.vz=(n.vz+(n._fz||0))*damp;
-    n.x+=n.vx; n.y+=n.vy; n.z+=n.vz;
+  NODES.forEach(n => { nodeMap[n.id] = n; });
+  NODES.forEach(n => {
+    if(!isAffiliate(n)) return;
+    const parent = nodeMap[getParentId(n)];
+    if(!parent){ n.x=0; n.y=0; n.z=0; return; }
+    // 부모 주변 랜덤 배치
+    const angle1 = Math.random()*Math.PI*2;
+    const angle2 = Math.random()*Math.PI*2;
+    const r = 60 + Math.random()*40;
+    n.x = parent.x + r*Math.sin(angle1)*Math.cos(angle2);
+    n.y = parent.y + r*Math.sin(angle1)*Math.sin(angle2);
+    n.z = parent.z + r*Math.cos(angle1);
+    n.sx = parent.sx; n.sy = parent.sy;
+    n.pscale = parent.pscale; n.depth = parent.depth;
   });
 }
+
+// 계열사 펼치기/접기 토글
+function toggleExpand(groupId){
+  if(expandedGroups.has(groupId)){
+    expandedGroups.delete(groupId);
+  } else {
+    expandedGroups.add(groupId);
+    // 해당 그룹 계열사 위치 재계산
+    const nodeMap = {};
+    NODES.forEach(n=>{ nodeMap[n.id]=n; });
+    const parent = nodeMap[groupId];
+    if(!parent) return;
+    const affiliates = NODES.filter(n=>isAffiliate(n)&&getParentId(n)===groupId);
+    affiliates.forEach((n,i)=>{
+      const total = affiliates.length;
+      const phi = Math.acos(1-2*(i+.5)/Math.max(total,1));
+      const theta = Math.PI*(1+Math.sqrt(5))*i;
+      const r = 70 + total*3;
+      n.x = parent.x + r*Math.sin(phi)*Math.cos(theta);
+      n.y = parent.y + r*Math.sin(phi)*Math.sin(theta);
+      n.z = parent.z + r*Math.cos(phi);
+    });
+  }
+}
+
+let forceFrames = 0; // 호환성 유지용 (미사용)
 
 let camX=.3, camY=0, panX=0, panY=0, autoRotate=true;
 let zoomLevel=1.0; // 줌: 0.2 ~ 5.0
@@ -2342,16 +2372,19 @@ function syncUI(){
   }
 }
 function visible(n){
+  // 계열사: 부모 그룹이 펼쳐진 경우에만 표시
+  if(isAffiliate(n)){
+    const parentId = getParentId(n);
+    if(!expandedGroups.has(parentId)) return false;
+    if(researchedOnly && !RESEARCHED_IDS.has(parentId)) return false;
+    if(sentFilter!=='all') return n.sentiment===sentFilter;
+    if(activeFilter!=='all' && n.cat!==activeFilter) return false;
+    return true;
+  }
+  // 그룹/섹터/크레딧 노드
   if(researchedOnly){
-    // 리서치된 그룹 노드 + 그 계열사만 표시
-    if(n.researched) return true;
-    if(n.id.includes('__')){
-      const parentId = n.id.split('__')[0];
-      return RESEARCHED_IDS.has(parentId);
-    }
-    // 섹터/크레딧 개념 노드는 항상 표시
-    if(['sector','credit','bond','risk'].includes(n.cat)) return true;
-    return false;
+    const isConcept = ['sector','credit','bond','risk'].includes(n.cat);
+    if(!isConcept && !n.researched) return false;
   }
   if(sentFilter!=='all') return n.sentiment===sentFilter;
   return activeFilter==='all'||n.cat===activeFilter;
@@ -2457,9 +2490,24 @@ function onMove(e){
   if(hovered){
     TT.style.left=(p.x+14)+'px'; TT.style.top=(p.y-18)+'px';
     document.getElementById('tt-cat').style.color = catColor(hovered.cat);
-    document.getElementById('tt-cat').textContent  = catLabel(hovered.cat);
+    const catTxt = catLabel(hovered.cat);
+    const researchBadge = hovered.researched ? ' <span style="color:rgba(255,210,60,.9)">✦ 리서치됨</span>' : '';
+    document.getElementById('tt-cat').innerHTML = catTxt + researchBadge;
     document.getElementById('tt-name').textContent = hovered.label;
-    document.getElementById('tt-desc').innerHTML = (hovered.desc||'').replace(/\n/g,'<br>').replace(/\|/g,'<span style="color:rgba(74,158,255,.3)"> | </span>');
+    // desc: 리서치 안된 그룹 노드면 힌트 표시
+    let descHtml = (hovered.desc||'').replace(/\n/g,'<br>').replace(/\|/g,'<span style="color:rgba(74,158,255,.3)"> | </span>');
+    // 계열사 토글 힌트
+    if(!isAffiliate(hovered)){
+      const affCount = NODES.filter(a=>isAffiliate(a)&&getParentId(a)===hovered.id).length;
+      if(affCount>0){
+        const isExp = expandedGroups.has(hovered.id);
+        const hint = isExp
+          ? `<div style="margin-top:6px;color:rgba(255,210,60,.6);font-size:10px;">▾ 클릭하여 계열사 접기 (${affCount}개)</div>`
+          : `<div style="margin-top:6px;color:rgba(140,200,255,.6);font-size:10px;">▸ 클릭하여 계열사 펼치기 (${affCount}개)</div>`;
+        descHtml = (descHtml||'') + hint;
+      }
+    }
+    document.getElementById('tt-desc').innerHTML = descHtml;
     TT.classList.add('vis');
   } else TT.classList.remove('vis');
 }
@@ -2471,7 +2519,17 @@ function onUp(e){
   const p=gp(e);
   const mx=p.x-W/2, my=p.y-H/2;
   const n=hitN(mx,my);
-  if(n){ closeEPanel(); openEdit(n); return; }
+  if(n){
+    closeEPanel();
+    // 그룹 노드 더블클릭 or 계열사 있는 노드: 우선 계열사 토글
+    // 단일 클릭: 패널 열기 + 계열사가 있으면 expand 토글
+    const hasAffiliates = NODES.some(x=>isAffiliate(x)&&getParentId(x)===n.id);
+    if(hasAffiliates && !isAffiliate(n)){
+      toggleExpand(n.id);
+    }
+    openEdit(n);
+    return;
+  }
   const eid=hitE(mx,my);
   if(eid){ closePanel(); openEPanel(eid); }
 }
@@ -3008,7 +3066,7 @@ function applyData(data){
   NODES = data.nodes.map((n,i)=>({ id:n.id||('n'+i), label:n.label||'노드', cat:n.cat||CATS[0].id, desc:n.desc||'', size:n.size||16, ...(n.sentiment?{sentiment:n.sentiment}:{}), x:0,y:0,z:0, vx:0,vy:0,vz:0, sx:0,sy:0, pscale:.75, depth:0 }));
   for(let i=0;i<NODES.length;i++) place(NODES[i],i,NODES.length);
   EDGES = Array.isArray(data.edges) ? data.edges.map(e=>({ s:e.s,t:e.t,w:e.w||2, ...(e.relation?{relation:e.relation}:{}), ...(e.dir?{dir:e.dir}:{}) })) : [];
-  forceFrames=0; activeFilter='all'; sentFilter='all'; researchedOnly=false;
+  forceFrames=0; activeFilter='all'; sentFilter='all'; researchedOnly=false; expandedGroups.clear();
   centerNodeId = data.centerNodeId || null;
   if(data.title){ document.getElementById('graph-title').textContent=data.title; document.title=data.title; }
   hovered=null; selEdge=null; editEdge=null; selNode=null;
@@ -3121,7 +3179,7 @@ function draw(){
     }
 
     // ✦ 리서치된 노드: 추가 발광 링
-    if(n.researched && vis && !n.id.includes('__')){
+    if(n.researched && vis && !isAffiliate(n)){
       const glow = ctx.createRadialGradient(x,y,r*.8,x,y,r*2.2);
       glow.addColorStop(0,'rgba(255,220,80,0.22)');
       glow.addColorStop(1,'rgba(255,220,80,0)');
@@ -3135,7 +3193,7 @@ function draw(){
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
 
     // 리서치된 노드: 황금색 이중 테두리
-    if(n.researched && vis && !n.id.includes('__')){
+    if(n.researched && vis && !isAffiliate(n)){
       ctx.strokeStyle=isSrc?ha(col,1):`rgba(255,210,60,${isH?1:.85})`;
       ctx.lineWidth=isSrc?2.5:isH?2.5:2;
       ctx.stroke();
@@ -3161,11 +3219,23 @@ function draw(){
       ctx.fillText(SENTIMENTS[n.sentiment].emoji,x,y-r-8);
     }
     // ✦ 리서치 완료 아이콘 (그룹 노드만)
-    if(n.researched && vis && !n.id.includes('__') && r>6){
+    if(n.researched && vis && !isAffiliate(n) && r>6){
       ctx.font=`bold ${Math.max(8,Math.min(13,r*.7))}px sans-serif`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
       ctx.fillStyle=`rgba(255,210,60,${isH?1:.9})`;
       ctx.fillText('✦',x+r+5,y-r-2);
+    }
+    // 계열사 수 배지 (그룹 노드, vis일 때만)
+    if(vis && !isAffiliate(n) && r>5){
+      const affCount = NODES.filter(a=>isAffiliate(a)&&getParentId(a)===n.id).length;
+      if(affCount>0){
+        const isExp = expandedGroups.has(n.id);
+        const badge = isExp ? `▾${affCount}` : `▸${affCount}`;
+        ctx.font=`bold 8px 'Space Mono',monospace`;
+        ctx.textAlign='center';
+        ctx.fillStyle = isExp ? `rgba(255,210,60,.95)` : `rgba(140,200,255,.7)`;
+        ctx.fillText(badge, x, y+r+22);
+      }
     }
     if(isSrc){ ctx.fillStyle='rgba(74,158,255,.9)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('SOURCE',x,y-r-8); }
   });
@@ -3189,7 +3259,6 @@ function zoomIn(){ zoomLevel=clampZoom(zoomLevel*1.2); updateZoomUI(); autoRotat
 function zoomOut(){ zoomLevel=clampZoom(zoomLevel/1.2); updateZoomUI(); autoRotate=false; }
 
 function loop(){
-  if(forceFrames<140){ forceStep(); forceFrames++; }
   if(autoRotate) camY+=.003;
   draw();
   requestAnimationFrame(loop);
