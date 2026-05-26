@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>대규모기업집단 크레딧 리서치</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#04080f;color:#c8d8e8;font-family:'Noto Sans KR',sans-serif;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;position:fixed;top:0;left:0;}
+
+#header{position:fixed;top:20px;left:20px;pointer-events:none;z-index:10;}
+#header h1{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.3em;color:#4a9eff;text-transform:uppercase;margin-bottom:3px;opacity:.8;}
+#header h2{font-size:20px;font-weight:700;color:#e8f4ff;}
+
+#toolbar{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:20;}
+.tb-btn{background:rgba(10,20,40,.9);border:1px solid rgba(74,158,255,.3);color:#8ab4d8;padding:7px 12px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;border-radius:3px;transition:all .18s;text-align:left;white-space:nowrap;}
+.tb-btn:hover,.tb-btn.active{background:rgba(74,158,255,.18);border-color:#4a9eff;color:#e8f4ff;}
+.tb-btn.danger:hover{background:rgba(255,80,80,.18);border-color:#ff5050;color:#ff8080;}
+.tb-sep{height:1px;background:rgba(74,158,255,.15);margin:2px 0;}
+
+#filters{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:20;flex-wrap:wrap;justify-content:center;max-width:90vw;}
+.f-btn{background:rgba(10,20,40,.9);border:1px solid rgba(74,158,255,.25);color:#6a8aaa;padding:7px 14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.12em;cursor:pointer;border-radius:3px;transition:all .18s;}
+.f-btn:hover,.f-btn.active{background:rgba(74,158,255,.2);border-color:#4a9eff;color:#e8f4ff;}
+
+#stats{position:fixed;bottom:62px;right:16px;font-family:'Space Mono',monospace;font-size:9px;color:rgba(74,158,255,.4);letter-spacing:.1em;line-height:1.9;text-align:right;z-index:10;pointer-events:none;}
+#legend{position:fixed;left:16px;bottom:62px;display:flex;flex-direction:column;gap:7px;pointer-events:none;z-index:10;}
+.leg{display:flex;align-items:center;gap:7px;font-size:10px;color:#5a7a9a;}
+.leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+#modebanner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.5);color:#4a9eff;padding:10px 22px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;border-radius:3px;pointer-events:none;z-index:30;display:none;}
+#shiftbanner{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);color:#4a9eff;padding:5px 14px;font-family:'Space Mono',monospace;font-size:9px;border-radius:3px;pointer-events:none;z-index:30;display:none;}
+
+#tooltip{position:fixed;pointer-events:none;background:rgba(4,8,20,.95);border:1px solid rgba(74,158,255,.4);border-radius:4px;padding:11px 14px;max-width:320px;opacity:0;transition:opacity .18s;z-index:40;}
+#tooltip.vis{opacity:1;}
+#tt-cat{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;margin-bottom:3px;}
+#tt-name{font-size:14px;font-weight:700;color:#e8f4ff;margin-bottom:5px;}
+#tt-desc{font-size:11px;color:#8aaccc;line-height:1.6;}
+
+/* PANELS */
+.side-panel{position:fixed;top:0;height:100%;width:300px;background:rgba(4,10,24,.97);z-index:50;display:flex;flex-direction:column;transition:transform .25s;}
+#panel{right:0;border-left:1px solid rgba(74,158,255,.2);transform:translateX(100%);}
+#panel.open{transform:translateX(0);}
+#epanel{left:0;width:280px;border-right:1px solid rgba(255,146,43,.25);transform:translateX(-100%);}
+#epanel.open{transform:translateX(0);}
+
+.panel-head{padding:14px 16px;border-bottom:1px solid rgba(74,158,255,.15);display:flex;justify-content:space-between;align-items:center;}
+.panel-head span{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:#4a9eff;}
+.panel-head.orange span{color:#ff922b;}
+.panel-head.orange{border-bottom-color:rgba(255,146,43,.15);}
+.panel-close{background:none;border:none;color:#6a8aaa;font-size:18px;cursor:pointer;}
+.panel-close:hover{color:#e8f4ff;}
+.panel-tabs{display:flex;border-bottom:1px solid rgba(74,158,255,.12);}
+.ptab{flex:1;padding:8px;font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.12em;cursor:pointer;border:none;background:none;color:#4a6a8a;border-bottom:2px solid transparent;transition:all .18s;}
+.ptab.active{color:#4a9eff;border-bottom-color:#4a9eff;background:rgba(74,158,255,.06);}
+.panel-body{padding:16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.panel-code{padding:10px;flex:1;overflow-y:auto;display:none;flex-direction:column;gap:8px;}
+
+.fl{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;color:#4a9eff;margin-bottom:4px;}
+.fi{width:100%;background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);color:#e8f4ff;padding:8px 10px;font-family:'Noto Sans KR',sans-serif;font-size:12px;border-radius:3px;outline:none;}
+.fi:focus{border-color:#4a9eff;}
+select.fi option{background:#0a1428;}
+textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
+.pb{padding:9px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.12em;cursor:pointer;border-radius:3px;border:1px solid;width:100%;transition:all .18s;}
+.pb.blue{background:rgba(74,158,255,.15);border-color:#4a9eff;color:#4a9eff;}
+.pb.blue:hover{background:rgba(74,158,255,.3);}
+.pb.orange{background:rgba(255,146,43,.1);border-color:#ff922b;color:#ff922b;}
+.pb.orange:hover{background:rgba(255,146,43,.25);}
+.pb.red{background:rgba(255,80,80,.1);border-color:rgba(255,80,80,.4);color:#ff6b6b;}
+.pb.red:hover{background:rgba(255,80,80,.25);}
+.pb.green{background:rgba(81,207,102,.1);border-color:#51cf66;color:#51cf66;}
+.pb.green:hover{background:rgba(81,207,102,.25);}
+.divider{height:1px;background:rgba(74,158,255,.12);}
+#edge-list{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;}
+.edge-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:rgba(74,158,255,.06);border-radius:3px;font-size:11px;color:#8ab4d8;}
+.edge-del{background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:13px;padding:0 2px;}
+#node-code-ta{width:100%;min-height:200px;background:rgba(0,0,0,.4);border:1px solid rgba(74,158,255,.2);color:#c8d8e8;padding:10px;font-family:'Space Mono',monospace;font-size:10px;line-height:1.7;border-radius:3px;outline:none;resize:vertical;}
+
+/* EDGE PANEL SPECIFICS */
+.e-nodes{display:flex;align-items:center;gap:8px;padding:10px;background:rgba(255,146,43,.06);border:1px solid rgba(255,146,43,.15);border-radius:4px;}
+.e-badge{flex:1;text-align:center;font-size:11px;font-weight:700;color:#e8f4ff;padding:4px;border-radius:3px;}
+.e-arrow{color:#ff922b;font-size:18px;flex-shrink:0;}
+.dir-row{display:flex;gap:6px;margin-top:8px;}
+.dir-btn{flex:1;background:rgba(255,146,43,.06);border:1px solid rgba(255,146,43,.2);color:#8a6a4a;padding:6px 2px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;border-radius:3px;transition:all .15s;}
+.dir-btn.active{background:rgba(255,146,43,.2);border-color:#ff922b;color:#ff922b;}
+.rel-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.chip{background:rgba(255,146,43,.08);border:1px solid rgba(255,146,43,.25);color:#ff922b;padding:4px 9px;font-size:11px;cursor:pointer;border-radius:12px;transition:all .15s;}
+.chip:hover{background:rgba(255,146,43,.25);}
+.sent-btn{flex:1;background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.15);color:#6a8aaa;padding:5px 2px;font-size:10px;cursor:pointer;border-radius:3px;transition:all .15s;text-align:center;}
+.sent-btn.active{background:rgba(74,158,255,.2);border-color:#4a9eff;color:#e8f4ff;}
+.wval{font-family:'Space Mono',monospace;font-size:11px;color:#ff922b;width:20px;text-align:right;}
+
+/* MODALS */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal.open{display:flex;}
+.mbox{background:#04080f;border:1px solid rgba(74,158,255,.4);border-radius:6px;width:min(520px,92vw);max-height:90vh;display:flex;flex-direction:column;}
+.mhead{padding:14px 16px;border-bottom:1px solid rgba(74,158,255,.15);display:flex;justify-content:space-between;align-items:center;}
+.mhead span{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;color:#4a9eff;}
+.mclose{background:none;border:none;color:#6a8aaa;font-size:20px;cursor:pointer;}
+.mclose:hover{color:#e8f4ff;}
+.mbody{padding:16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.msec{border-radius:4px;padding:12px;}
+.msec.blue{background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.15);}
+.msec.green{background:rgba(81,207,102,.04);border:1px solid rgba(81,207,102,.15);}
+.msec.purple{background:rgba(204,93,232,.04);border:1px solid rgba(204,93,232,.2);}
+.msec-title{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;margin-bottom:8px;}
+.mhint{font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-top:5px;}
+.mbtn{padding:8px 14px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;cursor:pointer;border-radius:3px;border:1px solid;transition:all .18s;}
+.mbtn.blue{background:rgba(74,158,255,.12);border-color:#4a9eff;color:#4a9eff;}
+.mbtn.blue:hover{background:rgba(74,158,255,.28);}
+.mbtn.green{background:rgba(81,207,102,.1);border-color:#51cf66;color:#51cf66;}
+.mbtn.green:hover{background:rgba(81,207,102,.25);}
+.mbtn.purple{background:rgba(204,93,232,.12);border-color:#cc5de8;color:#cc5de8;}
+.mbtn.purple:hover{background:rgba(204,93,232,.28);}
+#code-ta{width:100%;height:220px;background:rgba(0,0,0,.4);border:1px solid rgba(204,93,232,.2);color:#c8d8e8;padding:10px;font-family:'Space Mono',monospace;font-size:10px;line-height:1.7;border-radius:3px;outline:none;resize:vertical;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="header">
+  <h1>Credit Research · 대규모기업집단</h1>
+  <div onclick="startEditTitle()" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;border:1px solid transparent;transition:all .2s;" onmouseenter="this.style.borderColor='rgba(74,158,255,.3)';this.style.background='rgba(74,158,255,.07)'" onmouseleave="this.style.borderColor='transparent';this.style.background=''">
+    <h2 id="graph-title" style="margin:0;pointer-events:none;">기업집단 지분 온톨로지</h2>
+    <span style="font-size:11px;color:rgba(74,158,255,.4);pointer-events:none;">✎</span>
+  </div>
+  <input id="title-input" style="display:none;font-size:20px;font-weight:700;color:#e8f4ff;background:none;border:none;border-bottom:1px solid #4a9eff;outline:none;width:280px;margin-top:2px;" onblur="saveTitle()" onkeydown="if(event.key==='Enter')saveTitle()">
+</div>
+
+<div id="toolbar">
+  <button class="tb-btn active" id="btn-rotate" onclick="toggleRotate()">⟳ 자동회전</button>
+  <button class="tb-btn" onclick="resetView()">⌖ 뷰 초기화</button>
+  <button class="tb-btn" onclick="captureCanvas()">📷 캡처</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openSearch()">🔍 검색</button>
+  <button class="tb-btn" onclick="openAddNode()">＋ 노드 추가</button>
+  <button class="tb-btn" id="btn-connect" onclick="toggleConnect()">⇔ 연결 모드</button>
+  <button class="tb-btn" onclick="openCatModal()">◈ 카테고리</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openXmind()" style="color:#a78bfa;border-color:rgba(167,139,250,.4);">🗺 Xmind 리서치</button>
+  <button class="tb-btn" onclick="openJibundo()" style="color:#34d399;border-color:rgba(52,211,153,.4);">📊 지분도 뷰어</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="openSaveLoad()">💾 저장 / 불러오기</button>
+  <button class="tb-btn" onclick="copyHTML()">⧉ HTML 복사</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn danger" onclick="resetAll()" style="font-size:9px;padding:5px 8px;opacity:.7;letter-spacing:0;width:50%;">↺ 초기화</button>
+</div>
+
+<div id="filters"></div>
+<div id="stats">NODES <span id="nc">0</span> · EDGES <span id="ec">0</span></div>
+<div id="legend"></div>
+<div id="modebanner">⇔ 연결 모드 — 노드를 탭해서 연결 · ESC 종료</div>
+<div id="shiftbanner">SHIFT 누른 채 드래그 → 화면 이동</div>
+
+<div id="tooltip"><div id="tt-cat"></div><div id="tt-name"></div><div id="tt-desc"></div></div>
+
+<!-- NODE PANEL -->
+<div class="side-panel" id="panel">
+  <div class="panel-head"><span id="panel-title">NODE EDITOR</span><button class="panel-close" onclick="closePanel()">×</button></div>
+  <div class="panel-tabs">
+    <button class="ptab active" id="tab-form" onclick="switchTab('form')">폼 편집</button>
+    <button class="ptab" id="tab-code" onclick="switchTab('code')">JSON 편집</button>
+  </div>
+  <div class="panel-body" id="panel-body">
+    <input type="hidden" id="edit-id">
+    <div><div class="fl">LABEL</div><input class="fi" id="edit-label" placeholder="노드 이름"></div>
+    <div><div class="fl">CATEGORY</div><select class="fi" id="edit-cat"></select></div>
+    <div>
+      <div class="fl">SENTIMENT</div>
+      <div style="display:flex;gap:6px;">
+        <button class="sent-btn" id="sent-none"  onclick="setSent('')"    >—</button>
+        <button class="sent-btn" id="sent-good"  onclick="setSent('good')" >✅ good</button>
+        <button class="sent-btn" id="sent-ok"    onclick="setSent('ok')"   >🔘 not bad</button>
+        <button class="sent-btn" id="sent-bad"   onclick="setSent('bad')"  >🔴 bad</button>
+        <button class="sent-btn" id="sent-warn"  onclick="setSent('warn')" >⚠️ 주의</button>
+      </div>
+    </div>
+    <div><div class="fl">SIZE</div><input class="fi" id="edit-size" type="number" min="8" max="40" value="16"></div>
+    <div><div class="fl">DESCRIPTION / 윤곽선 메모</div><textarea class="fi" id="edit-desc" placeholder="크레딧 분석 메모&#10;줄바꿈으로 구분 (윤곽선처럼 활용)&#10;예: 동일인: 이재용&#10;지분율: 삼성물산 19.8%&#10;핵심 이슈: ..." style="min-height:120px;"></textarea></div>
+    <button class="pb blue" onclick="saveNode()">저장</button>
+    <div id="del-section" style="display:none;">
+      <div class="divider"></div>
+      <div class="fl" style="margin-top:4px">연결된 엣지</div>
+      <div id="edge-list"></div>
+      <div class="divider" style="margin-top:8px"></div>
+      <button class="pb green" id="btn-center" onclick="setCenter()" style="margin-bottom:6px;">⌖ 중심 노드로 설정</button>
+      <button class="pb red" onclick="deleteNode()">노드 삭제</button>
+    </div>
+  </div>
+  <div class="panel-code" id="panel-code">
+    <div style="display:flex;gap:6px;">
+      <button class="mbtn purple" onclick="loadNodeToCode()" style="flex:1;">현재 노드 가져오기</button>
+      <button class="mbtn blue" onclick="applyNodeCode()" style="flex:1;">적용</button>
+    </div>
+    <div class="fl" style="margin-top:4px">NODE JSON</div>
+    <textarea id="node-code-ta" placeholder='{"id":"x","label":"이름","cat":"macro","desc":"설명","size":16}'></textarea>
+    <div class="mhint">붙여넣거나 수정 후 적용 버튼을 누르세요</div>
+  </div>
+</div>
+
+<!-- EDGE PANEL -->
+<div class="side-panel" id="epanel">
+  <div class="panel-head orange"><span>EDGE EDITOR</span><button class="panel-close" onclick="closeEPanel()">×</button></div>
+  <div class="panel-body">
+    <div>
+      <div class="fl" style="color:#ff922b">연결 노드</div>
+      <div class="e-nodes">
+        <div class="e-badge" id="ep-src"></div>
+        <div class="e-arrow" id="ep-arrow">↔</div>
+        <div class="e-badge" id="ep-tgt"></div>
+      </div>
+      <div class="dir-row">
+        <button class="dir-btn active" id="dir-both" onclick="setDir('both')">↔ 양방향</button>
+        <button class="dir-btn" id="dir-fwd" onclick="setDir('fwd')">→ 단방향</button>
+        <button class="dir-btn" id="dir-bwd" onclick="setDir('bwd')">← 역방향</button>
+      </div>
+    </div>
+    <div>
+      <div class="fl" style="color:#ff922b">관계 타입</div>
+      <input class="fi" id="ep-rel" placeholder="예: 영향, 결정, 상관, 압력 ..." style="border-color:rgba(255,146,43,.3);margin-bottom:8px;">
+      <div class="rel-chips">
+        <button class="chip" onclick="setRel('영향')">영향</button>
+        <button class="chip" onclick="setRel('결정')">결정</button>
+        <button class="chip" onclick="setRel('상관')">상관</button>
+        <button class="chip" onclick="setRel('압력')">압력</button>
+        <button class="chip" onclick="setRel('반영')">반영</button>
+        <button class="chip" onclick="setRel('구성')">구성</button>
+        <button class="chip" onclick="setRel('헤지')">헤지</button>
+        <button class="chip" onclick="setRel('기반')">기반</button>
+      </div>
+    </div>
+    <div>
+      <div class="fl" style="color:#ff922b">연결 강도</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <div class="wline" id="ep-wline" style="width:40px"></div>
+        <div class="wval" id="ep-wval">2</div>
+      </div>
+      <input type="range" id="ep-w" min="1" max="5" step="1" value="2" oninput="updateW(this.value)" style="width:100%;accent-color:#ff922b;cursor:pointer;">
+      <div style="display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-top:4px;"><span>약함</span><span>보통</span><span>강함</span></div>
+    </div>
+    <div class="divider"></div>
+    <button class="pb orange" onclick="saveEdge()">저장</button>
+    <button class="pb red" onclick="delEdge()">엣지 삭제</button>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal" id="catmodal">
+  <div class="mbox">
+    <div class="mhead"><span>◈ CATEGORY MANAGER</span><button class="mclose" onclick="closeCatModal()">×</button></div>
+    <div class="mbody">
+      <div id="cat-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input id="new-cat-label" class="fi" placeholder="새 카테고리 이름" style="flex:1;">
+        <input id="new-cat-color" type="color" value="#00ccff" style="width:36px;height:36px;border:1px solid rgba(74,158,255,.3);background:none;border-radius:3px;cursor:pointer;padding:2px;">
+        <button onclick="addCat()" class="mbtn blue">추가</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH MODAL -->
+<div class="modal" id="searchmodal">
+  <div class="mbox" style="width:min(480px,92vw);">
+    <div class="mhead">
+      <span>🔍 SEARCH</span>
+      <button class="mclose" onclick="closeSearch()">×</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid rgba(74,158,255,.12);">
+      <input id="search-input" class="fi" placeholder="노드명, 설명, 연결 관계 검색..." oninput="doSearch(this.value)" autocomplete="off" style="font-size:13px;">
+    </div>
+    <div id="search-results" style="flex:1;overflow-y:auto;max-height:50vh;padding:8px 0;"></div>
+  </div>
+</div>
+
+<!-- XMIND VIEWER MODAL -->
+<div class="modal" id="xmindmodal" style="z-index:200;">
+  <div class="mbox" style="width:min(980px,96vw);max-height:96vh;">
+    <div class="mhead">
+      <span>🗺 XMIND · 대규모기업집단 리서치</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-family:'Space Mono',monospace;font-size:9px;color:#6a8aaa;letter-spacing:.1em;">공정위 공시 기반 마인드맵</span>
+        <button class="mclose" onclick="closeXmind()">×</button>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid rgba(74,158,255,.12);display:flex;gap:8px;align-items:center;">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;">EMBED</span>
+      <input id="xmind-url" class="fi" style="flex:1;font-size:11px;" value="https://app.xmind.com/embed/OrZGQCTM" placeholder="Xmind embed URL">
+      <button onclick="reloadXmind()" class="mbtn blue" style="font-size:9px;white-space:nowrap;">불러오기</button>
+    </div>
+    <div style="flex:1;overflow:hidden;padding:0;">
+      <iframe id="xmind-iframe" src="https://app.xmind.com/embed/OrZGQCTM" width="100%" height="600px" frameborder="0" scrolling="no" allow="fullscreen" style="display:block;border:none;"></iframe>
+    </div>
+    <div style="padding:10px 16px;border-top:1px solid rgba(74,158,255,.1);display:flex;gap:8px;justify-content:flex-end;">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:#3a5a7a;align-self:center;">※ 노드 클릭 → 온톨로지에 노드 생성 가능</span>
+      <button onclick="closeXmind()" class="mbtn blue">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 지분도 뷰어 모달 -->
+<div class="modal" id="jibundoModal" style="z-index:200;">
+  <div class="mbox" style="width:min(760px,96vw);max-height:96vh;">
+    <div class="mhead">
+      <span>📊 2025 기업집단 소유지분도</span>
+      <button class="mclose" onclick="closeJibundo()">×</button>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid rgba(74,158,255,.12);">
+      <input id="jibundo-search" class="fi" placeholder="그룹명 검색 (예: 삼성, SK, 현대자동차...)" oninput="filterJibundo(this.value)" style="font-size:12px;">
+    </div>
+    <div id="jibundo-list" style="flex:1;overflow-y:auto;max-height:65vh;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;"></div>
+    <div style="padding:10px 16px;border-top:1px solid rgba(74,158,255,.1);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:#3a5a7a;">공정거래위원회 2025.5.1 기준 · 92개 집단</span>
+      <button onclick="closeJibundo()" class="mbtn blue">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVE/LOAD MODAL -->
+<input type="file" id="file-input" accept=".json" style="display:none">
+<div class="modal" id="savemodal">
+  <div class="mbox">
+    <div class="mhead"><span>💾 SAVE / LOAD</span><button class="mclose" onclick="closeSL()">×</button></div>
+    <div class="mbody">
+      <div class="msec blue">
+        <div class="msec-title" style="color:#4a9eff;">💾 저장</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="save-name" class="fi" style="flex:1;" placeholder="파일명">
+          <button onclick="saveFile()" class="mbtn blue" style="white-space:nowrap;">다운로드</button>
+        </div>
+        <div class="mhint">→ 다운로드 폴더에 .json 으로 저장돼요</div>
+      </div>
+      <div class="msec green">
+        <div class="msec-title" style="color:#51cf66;">📂 파일 불러오기</div>
+        <button onclick="loadFile()" class="mbtn green" style="width:100%;">JSON 파일 선택</button>
+        <div class="mhint">→ 이전에 저장한 .json 파일을 선택하세요</div>
+      </div>
+      <div class="msec purple">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="msec-title" style="color:#cc5de8;margin-bottom:0;">✎ 코드 붙여넣기</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="codeFromCurrent()" class="mbtn purple" style="font-size:9px;padding:4px 8px;">현재 데이터</button>
+            <button onclick="applyCode()" class="mbtn purple" style="font-size:9px;padding:4px 8px;">적용</button>
+          </div>
+        </div>
+        <textarea id="code-ta" placeholder='이전 버전 JSON을 붙여넣으세요&#10;{"version":1,"nodes":[...],"edges":[...],"categories":[]}'></textarea>
+        <div class="mhint">→ 적용 버튼을 누르면 현재 온톨로지에 반영돼요</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// SCHEMA
+// ═══════════════════════════════════════
+const SCHEMA_VERSION = 1;
+const STORAGE_KEY = 'credit_ontology_v1';
+
+// ═══════════════════════════════════════
+// 지분도 데이터 (공정위 2025.5.1 기준)
+// ═══════════════════════════════════════
+const JIBUNDO_DATA = [
+  {rank:1,  name:'삼성',      owner:'이재용',   key:'삼성전자, 삼성물산, 삼성생명보험, 삼성화재해상보험, 삼성전기, 삼성에스디아이, 삼성증권, 삼성중공업, 제일기획, 삼성바이오로직스, 삼성에스디에스, 삼성디스플레이'},
+  {rank:2,  name:'에스케이',  owner:'최태원',   key:'에스케이, 에스케이텔레콤, 에스케이하이닉스, 에스케이이노베이션, 에스케이온, 에스케이에코플랜트, 에스케이스퀘어, 에스케이네트웍스'},
+  {rank:3,  name:'현대자동차',owner:'정의선',   key:'현대자동차, 기아, 현대모비스, 현대글로비스, 현대건설, 현대위아, 현대오토에버, 현대제철, 현대로템, 이노션'},
+  {rank:4,  name:'엘지',      owner:'구광모',   key:'엘지, 엘지전자, 엘지화학, 엘지에너지솔루션, 엘지생활건강, 엘지유플러스, 엘지씨엔에스, 엘지디스플레이, 엘지이노텍'},
+  {rank:5,  name:'롯데',      owner:'신동빈',   key:'롯데지주, 롯데쇼핑, 롯데칠성음료, 롯데웰푸드, 롯데건설, 롯데이노베이트, 롯데렌탈'},
+  {rank:6,  name:'포스코',    owner:'포스코홀딩스', key:'포스코홀딩스, 포스코, 포스코인터내셔널, 포스코이앤씨, 포스코퓨처엠, 포스코디엑스, 포스코스틸리온'},
+  {rank:7,  name:'한화',      owner:'김승연',   key:'한화, 한화에어로스페이스, 한화생명보험, 한화솔루션, 한화오션, 한화비전, 한화손해보험, 한화투자증권, 한화갤러리아'},
+  {rank:8,  name:'HD현대',    owner:'정몽준',   key:'HD현대, HD현대중공업, HD현대오일뱅크, HD현대인프라코어, HD현대건설기계, HD현대일렉트릭, HD현대마린솔루션'},
+  {rank:9,  name:'농협',      owner:'농협중앙회', key:'농협금융지주, 농협은행, 농협생명보험, 농협손해보험, 엔에이치투자증권, 농협경제지주'},
+  {rank:10, name:'지에스',    owner:'허창수',   key:'지에스, 지에스칼텍스, 지에스리테일, 지에스건설, 지에스글로벌, 지에스에너지, 자이에스앤디'},
+  {rank:11, name:'신세계',    owner:'이명희',   key:'신세계, 이마트, 신세계인터내셔날, 신세계푸드, 신세계아이앤씨, 에스에스지닷컴, 신세계프라퍼티'},
+  {rank:12, name:'한진',      owner:'조원태',   key:'한진칼, 대한항공, 아시아나항공, 진에어, 에어부산, 한진, 칼호텔네트워크'},
+  {rank:13, name:'케이티',    owner:'케이티(주)', key:'케이티, 케이티스카이라이프, 케이티이에스, 케이티엔지니어링, 케이티클라우드, 케이티알파'},
+  {rank:14, name:'씨제이',    owner:'이재현',   key:'씨제이, 씨제이제일제당, 씨제이이엔엠, 씨제이대한통운, 씨제이올리브영, 씨제이푸드빌, 스튜디오드래곤'},
+  {rank:15, name:'엘에스',    owner:'구자은',   key:'엘에스, 엘에스일렉트릭, 엘에스전선, 엘에스머트리얼즈, 엘에스에코에너지, 가온전선, 제이에스전선'},
+  {rank:16, name:'카카오',    owner:'김범수',   key:'카카오, 카카오뱅크, 카카오페이, 카카오게임즈, 카카오모빌리티, 카카오엔터테인먼트, 에스엠엔터테인먼트'},
+  {rank:17, name:'에이치엠엠', owner:'에이치엠엠(주)', key:'에이치엠엠'},
+  {rank:18, name:'두산',      owner:'박정원',   key:'두산, 두산에너빌리티, 두산밥캣, 두산로보틱스, 두산퓨얼셀, 두산테스나'},
+  {rank:19, name:'DL',        owner:'이해욱',   key:'대림, 디엘, 디엘이앤씨, 디엘케미칼, 디엘에너지, 디엘건설'},
+  {rank:20, name:'중흥건설',  owner:'정창선',   key:'중흥건설, 대우건설, 중흥토건, 세흥건설'},
+  {rank:21, name:'셀트리온',  owner:'서정진',   key:'셀트리온홀딩스, 셀트리온, 셀트리온제약, 셀트리온바이오솔루션스'},
+  {rank:22, name:'네이버',    owner:'이해진',   key:'네이버, 네이버클라우드, 네이버파이낸셜, 네이버랩스, 스노우, 네이버웹툰'},
+  {rank:23, name:'에쓰-오일', owner:'에쓰-오일(주)', key:'에쓰-오일'},
+  {rank:24, name:'미래에셋',  owner:'박현주',   key:'미래에셋자산운용, 미래에셋증권, 미래에셋생명보험, 미래에셋캐피탈, 미래에셋벤처투자'},
+  {rank:25, name:'쿠팡',      owner:'쿠팡(주)', key:'쿠팡, 쿠팡이츠서비스, 쿠팡로지스틱스서비스, 쿠팡페이'},
+  {rank:26, name:'현대백화점', owner:'정지선',  key:'현대지에프홀딩스, 현대백화점, 현대홈쇼핑, 현대리바트, 한섬, 현대에버다임, 지누스'},
+  {rank:27, name:'한국앤컴퍼니그룹', owner:'조양래', key:'한국앤컴퍼니, 한국타이어앤테크놀로지'},
+  {rank:28, name:'부영',      owner:'이중근',   key:'부영, 광영토건, 남양개발, 대화도시가스'},
+  {rank:29, name:'영풍',      owner:'장형진',   key:'영풍, 고려아연, 코리아써키트, 인터플렉스, 시그네틱스, 영풍문고'},
+  {rank:30, name:'하림',      owner:'김홍국',   key:'하림지주, 하림, 팬오션, 선진, 팜스코, 제일사료'},
+  {rank:31, name:'효성',      owner:'조현준',   key:'효성, 효성티앤씨, 효성중공업, 효성화학, 효성아이티엑스, 에이치에스효성첨단소재'},
+  {rank:32, name:'장금상선',  owner:'정태순',   key:'장금상선, 국양로지텍, 흥아해운'},
+  {rank:33, name:'SM',        owner:'우오현',   key:'삼라, 에스엠스틸, 삼환기업, 대한해운, 에스엠상선, 남선알미늄'},
+  {rank:34, name:'에이치디씨', owner:'정몽규',  key:'에이치디씨, 에이치디씨현대산업개발, 에이치디씨랩스'},
+  {rank:35, name:'호반건설',  owner:'김상열',   key:'호반건설, 호반, 호반프라퍼티, 호반산업, 서울신문사'},
+  {rank:36, name:'두나무',    owner:'두나무(주)', key:'두나무, 두나무앤파트너스, 두나무투자일임'},
+  {rank:37, name:'케이티앤지', owner:'케이티앤지(주)', key:'케이티앤지, 한국인삼공사, 영진약품'},
+  {rank:38, name:'코오롱',    owner:'이웅열',   key:'코오롱, 코오롱인더스트리, 코오롱글로벌, 코오롱모빌리티그룹, 코오롱생명과학'},
+  {rank:39, name:'케이씨씨',  owner:'정몽진',   key:'케이씨씨, 케이씨씨글라스, 케이씨씨건설'},
+  {rank:40, name:'DB',        owner:'김준기',   key:'DB Inc., DB하이텍, DB손해보험, DB생명보험, DB증권, DB금융투자'},
+  {rank:41, name:'넥슨',      owner:'유정현',   key:'엔엑스씨, NEXON Co.Ltd., 넥슨코리아, 넥슨게임즈'},
+  {rank:42, name:'오씨아이',  owner:'이우현',   key:'오씨아이홀딩스, 오씨아이, 부광약품, SGC에너지, SGC이앤씨'},
+  {rank:43, name:'엘엑스',    owner:'구본준',   key:'엘엑스홀딩스, 엘엑스인터내셔널, 엘엑스세미콘, 엘엑스하우시스, 엘엑스판토스'},
+  {rank:44, name:'세아',      owner:'이순형',   key:'세아홀딩스, 세아베스틸지주, 세아제강지주, 세아특수강, 세아베스틸, 세아제강'},
+  {rank:45, name:'넷마블',    owner:'방준혁',   key:'인디스에어, 넷마블, 코웨이, 넷마블에프앤씨, 넷마블넥서스'},
+  {rank:46, name:'이랜드',    owner:'박성수',   key:'이랜드월드, 이랜드리테일, 이월드, 이랜드파크, 이랜드스포츠'},
+  {rank:47, name:'교보생명보험', owner:'신창재', key:'교보생명보험, 교보증권, 교보문고, 교보자산신탁'},
+  {rank:48, name:'한국지엠',  owner:'GM그룹',   key:'한국지엠, 지엠테크니컬센터코리아'},
+  {rank:49, name:'다우키움',  owner:'김익래',   key:'다우데이타, 다우기술, 키움증권, 키움투자자산운용, 한국정보인증, 사람인'},
+  {rank:50, name:'금호석유화학', owner:'박찬구', key:'금호석유화학, 금호피앤비화학, 금호폴리켐, 금호리조트'},
+  {rank:51, name:'대방건설',  owner:'구교운',   key:'대방건설, 대방산업개발, 대우건설동탄'},
+  {rank:52, name:'태영',      owner:'윤세영',   key:'티와이홀딩스, 태영건설, SBS, 블루원'},
+  {rank:53, name:'삼천리',    owner:'이만득',   key:'삼천리, 삼천리이엔지, 삼천리이에스, 에스파워, 휴세스'},
+  {rank:54, name:'KG',        owner:'곽재선',   key:'KG케미칼, KG에코솔루션, KG이니시스, KG모빌리티, KG스틸'},
+  {rank:55, name:'에코프로',  owner:'이동채',   key:'에코프로, 에코프로비엠, 에코프로머티리얼즈, 에코프로에이치엔, 에코프로에이치엔'},
+  {rank:56, name:'HL',        owner:'정몽원',   key:'HL홀딩스, HL만도, HL디앤아이한라, HL로보틱스'},
+  {rank:57, name:'동원',      owner:'김남정',   key:'동원산업, 동원에프앤비, 동원시스템즈, 동원로엑스, 동원건설산업'},
+  {rank:58, name:'아모레퍼시픽', owner:'서경배', key:'아모레퍼시픽홀딩스, 아모레퍼시픽, 이니스프리, 에뛰드, 오설록'},
+  {rank:59, name:'태광',      owner:'이호진',   key:'태광산업, 대한화섬, 흥국생명보험, 흥국화재해상보험, 흥국증권, 티캐스트'},
+  {rank:60, name:'크래프톤',  owner:'장병규',   key:'크래프톤, 블루홀스튜디오, 라이징윙스'},
+  {rank:61, name:'글로벌세아', owner:'김웅기',  key:'글로벌세아, 세아상역, 인디에프, 태림포장, 태림페이퍼'},
+  {rank:62, name:'한국항공우주산업', owner:'한국항공우주산업(주)', key:'한국항공우주산업, 에스앤케이항공'},
+  {rank:63, name:'엠디엠',    owner:'문주현',   key:'엠디엠, 엠디엠플러스, 한국자산신탁'},
+  {rank:64, name:'소노인터내셔널', owner:'박춘희', key:'소노인터내셔널, 소노스퀘어, 대명건설'},
+  {rank:65, name:'애경',      owner:'장영신',   key:'에이케이홀딩스, 애경케미칼, 애경산업, 제주항공'},
+  {rank:66, name:'동국제강',  owner:'장세주',   key:'동국홀딩스, 동국제강, 동국씨엠, 인터지스, 아주스틸'},
+  {rank:67, name:'BS',        owner:'이기승',   key:'비에스보성, 비에스한양, 파인힐스, 비에스산업'},
+  {rank:68, name:'삼양',      owner:'김윤',     key:'삼양홀딩스, 삼양사, 삼양패키징, 삼양엔씨켐, 삼양이노켐'},
+  {rank:69, name:'엘아이지',  owner:'구본상',   key:'엘아이지, 엘아이지넥스원, 이노와이어리스'},
+  {rank:70, name:'중앙',      owner:'홍석현',   key:'중앙홀딩스, 중앙일보, 제이티비씨, 콘텐트리중앙, 휘닉스중앙'},
+  {rank:71, name:'유진',      owner:'유경선',   key:'유진기업, 유진투자증권, 동양, 유진로지스틱스'},
+  {rank:72, name:'고려에이치씨', owner:'박정석', key:'고려에이치씨, 고려해운, 케이씨티시'},
+  {rank:73, name:'BGF',       owner:'홍석조',   key:'BGF, BGF리테일, BGF에코머티리얼즈, BGF에코사이클'},
+  {rank:74, name:'대광',      owner:'조영훈',   key:'대광건영, 대광에이엠씨, 디케이랜드, 대광로제비앙'},
+  {rank:75, name:'반도홀딩스', owner:'권홍사',  key:'반도홀딩스, 반도건설, 반도종합건설, 반도개발'},
+  {rank:76, name:'대신',      owner:'양홍석',   key:'대신증권, 대신에프앤아이, 대신자산운용, 대신저축은행'},
+  {rank:77, name:'오케이금융그룹', owner:'최윤', key:'오케이홀딩스대부, 오케이저축은행, 오케이캐피탈, 오케이네트웍스'},
+  {rank:78, name:'하이트진로', owner:'박문덕',  key:'하이트진로홀딩스, 하이트진로'},
+  {rank:79, name:'농심',      owner:'신동원',   key:'농심홀딩스, 농심, 율촌화학, 메가마트'},
+  {rank:80, name:'DN',        owner:'김상헌',   key:'디엔오토모티브, 디엔솔루션즈'},
+  {rank:81, name:'현대해상화재보험', owner:'정몽윤', key:'현대해상화재보험, 현대씨앤알, 현대하이카손해사정'},
+  {rank:82, name:'신영',      owner:'정춘보',   key:'신영, 신영에셋, 브라이튼자산운용, 대농'},
+  {rank:83, name:'파라다이스', owner:'전필립',  key:'파라다이스글로벌, 파라다이스, 파라다이스호텔부산, 파라다이스세가사미'},
+  {rank:84, name:'아이에스지주', owner:'권혁운', key:'아이에스지주, 아이에스동서, 인선이엔티'},
+  {rank:85, name:'하이브',    owner:'방시혁',   key:'하이브, 빌리프랩, 위버스컴퍼니, 빅히트뮤직, 플레디스엔터테인먼트, 케이오지엔터테인먼트'},
+  {rank:86, name:'한솔',      owner:'조동길',   key:'한솔홀딩스, 한솔제지, 한솔로지스틱스, 한솔테크닉스, 한솔케미칼, 한솔아이원스'},
+  {rank:87, name:'삼표',      owner:'정도원',   key:'삼표산업, 삼표시멘트, 에스피에스테이트, 에스피네이처'},
+  {rank:88, name:'사조',      owner:'주진우',   key:'사조산업, 사조대림, 사조오양, 사조동아원, 사조씨푸드'},
+  {rank:89, name:'원익',      owner:'이용한',   key:'원익홀딩스, 원익아이피에스, 원익머트리얼즈, 원익피앤이, 케어랩스, 원익큐엔씨'},
+  {rank:90, name:'빗썸',      owner:'이정훈',   key:'빗썸홀딩스, 빗썸'},
+  {rank:91, name:'유코카캐리어스', owner:'유코카캐리어스(주)', key:'유코카캐리어스, 평택국제자동차부두'},
+  {rank:92, name:'영원',      owner:'성기학',   key:'영원무역홀딩스, 영원무역, 영원아웃도어, 스캇노스아시아, 푸드웰'},
+];
+
+// ═══════════════════════════════════════
+// DEFAULT DATA (크레딧 리서치용)
+// ═══════════════════════════════════════
+const DEF_CATS=[
+  {id:'top10',    label:'TOP 10 그룹',       color:'#4a9eff'},
+  {id:'top30',    label:'TOP 11-30 그룹',    color:'#51cf66'},
+  {id:'top60',    label:'TOP 31-60 그룹',    color:'#ffd43b'},
+  {id:'top92',    label:'TOP 61-92 그룹',    color:'#ff922b'},
+  {id:'sector',   label:'섹터 / 업종',       color:'#cc5de8'},
+  {id:'credit',   label:'크레딧 분석 개념',  color:'#ff6b6b'},
+  {id:'bond',     label:'채권 / 시장',       color:'#a78bfa'},
+  {id:'risk',     label:'리스크 요인',       color:'#f87171'},
+];
+
+const DEF_NODES=[
+  // ── TOP 10 그룹 (핵심 커버리지) ──
+  {id:'samsung',  label:'삼성',      cat:'top10', size:30, desc:'동일인: 이재용 | 삼성전자·삼성물산·삼성생명 중심 | 이재용 삼성물산 19.8% 보유 | 삼성전자 시총 약 400조'},
+  {id:'sk',       label:'에스케이',  cat:'top10', size:28, desc:'동일인: 최태원 | 에스케이(주) 17.8% 직접 보유 | 에스케이하이닉스·에스케이이노베이션·에스케이텔레콤 핵심 | 반도체·에너지·통신 복합그룹'},
+  {id:'hyundai',  label:'현대자동차',cat:'top10', size:27, desc:'동일인: 정의선 | 글로비스 20.0% 직접 보유 | 현대차·기아·현대모비스 삼각 순환출자 해소 중 | 친환경차 전환 핵심'},
+  {id:'lg',       label:'엘지',      cat:'top10', size:26, desc:'동일인: 구광모 | 엘지(주) 15.7% 보유 | 엘지화학→에너지솔루션 배터리 핵심 | 엘지전자·엘지유플러스'},
+  {id:'lotte',    label:'롯데',      cat:'top10', size:24, desc:'동일인: 신동빈 | 롯데지주 중심 지주체제 | 유통·식품·호텔·화학 복합 | 신동빈 13.0% 롯데지주 보유'},
+  {id:'posco',    label:'포스코',    cat:'top10', size:23, desc:'동일인: 포스코홀딩스(주) | 순수 지주회사 체제 | 철강·리튬·이차전지소재·수소 사업 확장 | 포스코인터내셔널 배당 핵심'},
+  {id:'hanwha',   label:'한화',      cat:'top10', size:22, desc:'동일인: 김승연 | 한화(주) 10.5% 보유 | 방산·에너지·금융 3대 축 | 한화에어로스페이스 방산 성장'},
+  {id:'hd_hd',    label:'HD현대',    cat:'top10', size:21, desc:'동일인: 정몽준 26.6% | 조선·건설기계·오일뱅크 | HD현대중공업·HD현대오일뱅크 핵심 | 조선업 수주잔고 급증'},
+  {id:'nonghyup', label:'농협',      cat:'top10', size:20, desc:'동일인: 농협중앙회 | 조합원→조합→농협중앙회 구조 | 농협금융지주·농협경제지주 양대 축 | 엔에이치투자증권 상장'},
+  {id:'gs',       label:'지에스',    cat:'top10', size:20, desc:'동일인: 허창수 4.59% | 지에스칼텍스·지에스리테일·지에스건설 핵심 | 정유·유통·건설 복합'},
+
+  // ── TOP 11-30 그룹 ──
+  {id:'shinsegae', label:'신세계',   cat:'top30', size:17, desc:'동일인: 이명희 10.2% | 신세계·이마트 양대 축 | 정용진(이마트 28.8%), 정유경(신세계 18.9%) 2세 승계'},
+  {id:'hanjin',   label:'한진',      cat:'top30', size:16, desc:'동일인: 조원태 5.73% | 한진칼 지주 체제 | 대한항공·아시아나항공 합병 완료 | 항공화물 강자'},
+  {id:'kt',       label:'케이티',    cat:'top30', size:16, desc:'동일인: 케이티(주) (자기지분 2.8%) | 통신·미디어·금융 | 케이티스카이라이프·케이티이에스'},
+  {id:'cj',       label:'씨제이',    cat:'top30', size:16, desc:'동일인: 이재현 34.4% | 씨제이제일제당·씨제이이엔엠·씨제이대한통운·씨제이올리브영 | 식품·미디어·물류'},
+  {id:'ls',       label:'엘에스',    cat:'top30', size:15, desc:'동일인: 구자은 3.63% | 엘에스일렉트릭·엘에스전선·가온전선 | 전선·전기 특화 그룹'},
+  {id:'kakao',    label:'카카오',    cat:'top30', size:15, desc:'동일인: 김범수 13.3% | 케이큐브홀딩스 100% | 카카오뱅크·카카오페이 금융 | 에스엠엔터 인수'},
+  {id:'hmm',      label:'에이치엠엠', cat:'top30', size:13, desc:'동일인: 에이치엠엠(주) 자체 | 컨테이너 해운 | 산업은행·해양진흥공사 대주주 | 민영화 진행 중'},
+  {id:'doosan',   label:'두산',      cat:'top30', size:14, desc:'동일인: 박정원 6.0% | 두산에너빌리티(원전)·두산밥캣·두산로보틱스 | 채권단 관리 졸업 후 재도약'},
+  {id:'dl',       label:'DL',        cat:'top30', size:13, desc:'동일인: 이해욱 | 대림→DL 브랜드 변경 | 디엘이앤씨·디엘케미칼·디엘에너지 분리 체제'},
+  {id:'joonghung', label:'중흥건설', cat:'top30', size:13, desc:'동일인: 정창선 76.7% | 대우건설 인수(지분 76.7%) | 건설 특화 민간 대그룹'},
+
+  // ── TOP 31-60 그룹 ──
+  {id:'celltrion', label:'셀트리온', cat:'top60', size:14, desc:'동일인: 서정진 | 셀트리온홀딩스 98.1% | 셀트리온·셀트리온제약·셀트리온바이오솔루션스 | 바이오시밀러 글로벌'},
+  {id:'naver',    label:'네이버',    cat:'top60', size:14, desc:'동일인: 이해진 3.8% | 유지음 100% 통해 지배 | 네이버클라우드·스노우·라인 | 일본 라인야후 재편'},
+  {id:'mirae',    label:'미래에셋',  cat:'top60', size:12, desc:'동일인: 박현주 | 미래에셋자산운용 60.2% | 미래에셋증권·미래에셋생명·미래에셋캐피탈'},
+  {id:'coupang',  label:'쿠팡',      cat:'top60', size:12, desc:'동일인: 쿠팡(주) 자체 | 뉴욕증시 상장 | 쿠팡이츠·쿠팡로지스틱스·쿠팡페이 확장'},
+  {id:'hyundai_dept', label:'현대백화점', cat:'top60', size:11, desc:'동일인: 정지선 | 현대지에프홀딩스 39.7% | 현대백화점·현대홈쇼핑·한섬·지누스'},
+  {id:'hanhwa_kcc', label:'케이씨씨', cat:'top60', size:10, desc:'동일인: 정몽진 20.0% | 케이씨씨·케이씨씨글라스·케이씨씨건설 | 실리콘·건자재 특화'},
+  {id:'hyosung',  label:'효성',      cat:'top60', size:11, desc:'동일인: 조현준 | 효성티앤씨·효성중공업·효성화학·효성아이티엑스 분리 체제 | 친족(조현상) 분리 경영'},
+  {id:'ecopro',   label:'에코프로',  cat:'top60', size:12, desc:'동일인: 이동채 18.8% | 에코프로비엠·에코프로머티리얼즈 양극재 핵심 | 배터리소재 급성장'},
+  {id:'hl',       label:'HL',        cat:'top60', size:10, desc:'동일인: 정몽원 27.07% | HL홀딩스→HL만도·HL디앤아이한라 | 자동차부품·건설'},
+  {id:'hybe',     label:'하이브',    cat:'top60', size:11, desc:'동일인: 방시혁 31.6% | 하이브→빌리프랩·위버스컴퍼니·빅히트뮤직 | K-POP 플랫폼'},
+
+  // ── 섹터 노드 ──
+  {id:'sec_steel',  label:'철강',        cat:'sector', size:14, desc:'포스코·동국제강·세아·현대제철 | 고로→전기로 전환 | 철광석 원가 변동성'},
+  {id:'sec_chem',   label:'화학·정유',   cat:'sector', size:14, desc:'LG화학·롯데케미칼·에쓰오일·금호석유화학 | 석유화학 업황 침체 | 배터리소재 전환'},
+  {id:'sec_semi',   label:'반도체·IT',   cat:'sector', size:15, desc:'삼성전자·SK하이닉스 | AI반도체 수요 급증 | HBM 경쟁 심화 | 사이클 업턴'},
+  {id:'sec_bat',    label:'배터리·소재', cat:'sector', size:14, desc:'에코프로비엠·포스코퓨처엠·엘에스머트리얼즈 | 전기차 수요 둔화 우려 | 미국 IRA 수혜'},
+  {id:'sec_const',  label:'건설',        cat:'sector', size:13, desc:'현대건설·DL이앤씨·GS건설·롯데건설 | PF 리스크·부동산 경기 | 해외수주 회복'},
+  {id:'sec_fin',    label:'금융',        cat:'sector', size:13, desc:'농협·카카오뱅크·교보생명·대신증권 | 금리 하락 수혜 | 가계부채 리스크'},
+  {id:'sec_ship',   label:'조선·해운',   cat:'sector', size:13, desc:'HD현대중공업·삼성중공업·에이치엠엠·장금상선 | 수주잔고 사상 최대 | LNG선 고부가'},
+  {id:'sec_bio',    label:'바이오·제약', cat:'sector', size:12, desc:'셀트리온·에코프로·부광약품 | 바이오시밀러 글로벌 수출 | 기술이전 기대'},
+  {id:'sec_media',  label:'미디어·엔터', cat:'sector', size:11, desc:'카카오엔터·SM엔터·하이브·씨제이이엔엠 | K-콘텐츠 글로벌화 | 플랫폼 경쟁'},
+  {id:'sec_retail', label:'유통·소비',   cat:'sector', size:11, desc:'신세계·롯데쇼핑·BGF리테일·현대백화점 | 이커머스 경쟁 | 오프라인 재편'},
+
+  // ── 크레딧 분석 개념 ──
+  {id:'cr_spread',  label:'크레딧 스프레드', cat:'credit', size:18, desc:'국채 대비 회사채 추가금리. 신용위험+유동성프리미엄 반영. IG vs HY 구분 핵심'},
+  {id:'cr_leverage', label:'레버리지',       cat:'credit', size:16, desc:'순차입금/EBITDA. 3.0x 이하 IG권, 4.0x 이상 고위험. 그룹 합산 vs 별도 차이 주의'},
+  {id:'cr_coverage', label:'이자보상배율',   cat:'credit', size:15, desc:'EBITDA/이자비용. 3.0x 이상 안정권. 고금리 환경에서 취약 계열사 선별 핵심'},
+  {id:'cr_covenant', label:'재무약정',       cat:'credit', size:13, desc:'부채비율·이자보상배율 유지 조항. 위반 시 기한이익상실. 비재무적 약정 포함'},
+  {id:'cr_cashflow', label:'잉여현금흐름',   cat:'credit', size:15, desc:'영업현금흐름 - CAPEX. 배당·채무상환 재원. 장기 크레딧 분석의 핵심 지표'},
+  {id:'cr_holdco',  label:'지주사 디스카운트', cat:'credit', size:13, desc:'지주사 채권 = 자회사 현금흐름 간접 접근. NAV 대비 할인 발생. 배당정책 주목'},
+  {id:'cr_refi',    label:'리파이낸싱 위험', cat:'credit', size:13, desc:'만기 도래 차입금 차환 가능성. 유동성 위기의 첫 신호. 만기 구조 분산 중요'},
+  {id:'cr_capex',   label:'CAPEX 부담',      cat:'credit', size:12, desc:'대규모 투자 집행 그룹의 FCF 악화 요인. 반도체·조선·배터리 사이클 CAPEX 주의'},
+
+  // ── 채권 / 시장 ──
+  {id:'bond_corp',  label:'회사채(IG)',   cat:'bond', size:16, desc:'BBB+ 이상 국내 회사채. 기준금리 연동 + 크레딧 스프레드. 2~5년 만기 주류'},
+  {id:'bond_hy',    label:'하이일드(HY)', cat:'bond', size:14, desc:'BB+ 이하 고수익채. 경기 민감. 롯데건설·태영건설 등 건설사 리스크 집중'},
+  {id:'bond_abs',   label:'ABS·ABCP',    cat:'bond', size:13, desc:'자산유동화. 부동산PF ABCP 리스크 집중. 만기 연장·차환 부담 주시'},
+  {id:'bond_rate',  label:'기준금리',    cat:'bond', size:17, desc:'한국은행 기준금리. 회사채 금리 기준. 2024 인하 사이클 진입. 크레딧 스프레드 안정화'},
+  {id:'bond_pf',    label:'부동산PF',    cat:'bond', size:15, desc:'부동산 프로젝트파이낸싱. 건설사·증권사 우발채무 핵심. 태영건설 워크아웃 사례'},
+
+  // ── 리스크 요인 ──
+  {id:'risk_china', label:'중국 리스크',  cat:'risk', size:13, desc:'화학·철강·디스플레이 수요 부진. 중국 경기 둔화. 업종별 차별화'},
+  {id:'risk_ir',    label:'금리 위험',    cat:'risk', size:14, desc:'고금리 장기화 시 이자비용 부담. 레버리지 높은 계열사 취약. 변동금리 부채 비중'},
+  {id:'risk_gov',   label:'지배구조 위험', cat:'risk', size:13, desc:'총수 리스크·승계 이슈·계열사 지원 부담. 지주사-자회사 크레딧 디링킹 여부'},
+  {id:'risk_policy', label:'정책·규제',   cat:'risk', size:12, desc:'공정거래법·지주회사 요건·금산분리. 대기업집단 규제 강화 리스크'},
+];
+
+const DEF_EDGES=[
+  // 삼성 그룹 내부
+  {s:'samsung', t:'sec_semi',   w:3, relation:'핵심업종'},
+  {s:'samsung', t:'cr_cashflow',w:3, relation:'풍부한FCF'},
+  {s:'samsung', t:'bond_corp',  w:2, relation:'AA+ 발행'},
+  // SK
+  {s:'sk',      t:'sec_semi',   w:3, relation:'SK하이닉스'},
+  {s:'sk',      t:'sec_chem',   w:2, relation:'SK이노베이션'},
+  {s:'sk',      t:'cr_leverage',w:2, relation:'차입금 관리'},
+  // 현대차
+  {s:'hyundai', t:'sec_ship',   w:1, relation:'현대중공업 분리'},
+  {s:'hyundai', t:'cr_cashflow',w:2, relation:'완성차 FCF'},
+  // LG
+  {s:'lg',      t:'sec_bat',    w:3, relation:'LG에너지솔루션'},
+  {s:'lg',      t:'sec_chem',   w:2, relation:'LG화학'},
+  // 포스코
+  {s:'posco',   t:'sec_steel',  w:3, relation:'핵심'},
+  {s:'posco',   t:'sec_bat',    w:2, relation:'포스코퓨처엠'},
+  // 한화
+  {s:'hanwha',  t:'sec_ship',   w:2, relation:'한화오션'},
+  {s:'hanwha',  t:'sec_fin',    w:2, relation:'한화생명'},
+  // HD현대
+  {s:'hd_hd',   t:'sec_ship',   w:3, relation:'핵심조선'},
+  // 카카오
+  {s:'kakao',   t:'sec_fin',    w:2, relation:'카카오뱅크·페이'},
+  {s:'kakao',   t:'sec_media',  w:2, relation:'SM·카카오엔터'},
+  // 두산
+  {s:'doosan',  t:'cr_leverage',w:3, relation:'차입금 부담'},
+  {s:'doosan',  t:'cr_refi',    w:2, relation:'차환 리스크'},
+  // 건설 섹터
+  {s:'sec_const',t:'bond_pf',   w:3, relation:'PF 익스포저'},
+  {s:'sec_const',t:'bond_hy',   w:2, relation:'HY 편입 위험'},
+  {s:'bond_pf',  t:'risk_ir',   w:3, relation:'금리상승 취약'},
+  // 크레딧 개념 연결
+  {s:'cr_spread', t:'cr_leverage', w:3, relation:'결정요인'},
+  {s:'cr_spread', t:'cr_coverage', w:2, relation:'결정요인'},
+  {s:'cr_leverage',t:'cr_cashflow',w:3, relation:'역상관'},
+  {s:'cr_cashflow',t:'cr_capex',   w:2, relation:'차감'},
+  {s:'cr_holdco', t:'risk_gov',    w:2, relation:'연계'},
+  {s:'bond_rate', t:'cr_spread',   w:2, relation:'기준점'},
+  {s:'bond_corp', t:'cr_spread',   w:3, relation:'반영'},
+  // 리스크
+  {s:'risk_ir',   t:'cr_coverage',  w:3, relation:'약화'},
+  {s:'risk_ir',   t:'bond_pf',      w:3, relation:'악화'},
+  {s:'risk_gov',  t:'cr_covenant',  w:2, relation:'촉발'},
+  {s:'risk_china',t:'sec_steel',    w:2, relation:'수요 타격'},
+  {s:'risk_china',t:'sec_chem',     w:2, relation:'공급과잉'},
+  // 에코프로
+  {s:'ecopro',   t:'sec_bat',    w:3, relation:'핵심'},
+  // 셀트리온
+  {s:'celltrion',t:'sec_bio',    w:3, relation:'핵심'},
+  // 하이브
+  {s:'hybe',     t:'sec_media',  w:3, relation:'K-POP'},
+  // 네이버
+  {s:'naver',    t:'sec_media',  w:2, relation:'콘텐츠·플랫폼'},
+  {s:'naver',    t:'sec_fin',    w:1, relation:'네이버파이낸셜'},
+];
+
+
+// ═══════════════════════════════════════
+// LIVE DATA
+// ═══════════════════════════════════════
+let CATS, NODES, EDGES;
+
+function resetToDefaults(){
+  CATS  = JSON.parse(JSON.stringify(DEF_CATS));
+  NODES = JSON.parse(JSON.stringify(DEF_NODES));
+  EDGES = JSON.parse(JSON.stringify(DEF_EDGES));
+}
+resetToDefaults();
+
+function catColor(id){ return (CATS.find(c=>c.id===id)||{color:'#4a9eff'}).color; }
+function catLabel(id){ return (CATS.find(c=>c.id===id)||{label:id}).label; }
+
+// ═══════════════════════════════════════
+// LOCALSTORAGE
+// ═══════════════════════════════════════
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: SCHEMA_VERSION,
+      title: document.getElementById('graph-title').textContent,
+      centerNodeId: centerNodeId||null,
+      categories: CATS,
+      nodes: NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
+      edges: EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+    }));
+  }catch(e){}
+}
+function tryLoad(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(!d.nodes || !d.nodes.length) return false;
+    CATS  = (d.categories && d.categories.length) ? d.categories : JSON.parse(JSON.stringify(DEF_CATS));
+    NODES = d.nodes;
+    EDGES = d.edges || [];
+    centerNodeId = d.centerNodeId || null;
+    if(d.title){ document.getElementById('graph-title').textContent=d.title; document.title=d.title; }
+    return true;
+  }catch(e){ return false; }
+}
+
+// ═══════════════════════════════════════
+// CANVAS + 3D
+// ═══════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+function place(n, i, total){
+  const phi   = Math.acos(1 - 2*(i+.5)/Math.max(total,1));
+  const theta = Math.PI*(1+Math.sqrt(5))*i;
+  const r     = 240 + Math.random()*80;
+  n.x = r*Math.sin(phi)*Math.cos(theta);
+  n.y = r*Math.sin(phi)*Math.sin(theta);
+  n.z = r*Math.cos(phi);
+  n.vx = n.vy = n.vz = 0;
+  n.sx = n.sy = 0; n.pscale = .75; n.depth = 0;
+}
+function placeAll(){ NODES.forEach((n,i)=>place(n,i,NODES.length)); }
+
+let forceFrames = 0;
+function forceStep(){
+  const k=180, rep=28000, damp=.85;
+  for(let i=0;i<NODES.length;i++){
+    let fx=0,fy=0,fz=0;
+    for(let j=0;j<NODES.length;j++){
+      if(i===j) continue;
+      const dx=NODES[i].x-NODES[j].x, dy=NODES[i].y-NODES[j].y, dz=NODES[i].z-NODES[j].z;
+      const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=rep/(d*d);
+      fx+=f*dx/d; fy+=f*dy/d; fz+=f*dz/d;
+    }
+    fx -= NODES[i].x*.001; fy -= NODES[i].y*.001; fz -= NODES[i].z*.001;
+    NODES[i]._fx=fx; NODES[i]._fy=fy; NODES[i]._fz=fz;
+  }
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b) return;
+    const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
+    const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=(d-k)*.015*(e.w||2);
+    a._fx+=f*dx/d; a._fy+=f*dy/d; a._fz+=f*dz/d;
+    b._fx-=f*dx/d; b._fy-=f*dy/d; b._fz-=f*dz/d;
+  });
+  NODES.forEach(n=>{
+    n.vx=(n.vx+(n._fx||0))*damp; n.vy=(n.vy+(n._fy||0))*damp; n.vz=(n.vz+(n._fz||0))*damp;
+    n.x+=n.vx; n.y+=n.vy; n.z+=n.vz;
+  });
+}
+
+let camX=.3, camY=0, panX=0, panY=0, autoRotate=true;
+function proj(x,y,z){
+  const cx=x*Math.cos(camY)-z*Math.sin(camY), cz=x*Math.sin(camY)+z*Math.cos(camY);
+  const cy=y*Math.cos(camX)-cz*Math.sin(camX), fz=y*Math.sin(camX)+cz*Math.cos(camX);
+  const sc=900/(900+fz+300);
+  return {sx:cx*sc, sy:cy*sc, sc, depth:fz};
+}
+
+// ═══════════════════════════════════════
+// UI SYNC
+// ═══════════════════════════════════════
+const SENTIMENTS={
+  good: {emoji:'✅', label:'good',    color:'#51cf66'},
+  ok:   {emoji:'🔘', label:'not bad', color:'#8a9aaa'},
+  bad:  {emoji:'🔴', label:'bad',     color:'#ff6b6b'},
+  warn: {emoji:'⚠️', label:'주의',    color:'#ff922b'},
+};
+
+let activeFilter='all';
+let sentFilter='all'; // 'all' or sentiment key
+
+function syncUI(){
+  // 카테고리 필터
+  const fEl=document.getElementById('filters');
+  fEl.innerHTML='';
+  const ab=document.createElement('button');
+  ab.className='f-btn'+(activeFilter==='all'&&sentFilter==='all'?' active':'');
+  ab.textContent='전체';
+  ab.onclick=()=>{ activeFilter='all'; sentFilter='all'; syncUI(); };
+  fEl.appendChild(ab);
+  CATS.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='f-btn'+(activeFilter===c.id?' active':'');
+    b.textContent=c.label;
+    if(activeFilter===c.id){ b.style.borderColor=c.color; b.style.color=c.color; }
+    b.onclick=()=>{ activeFilter=c.id; sentFilter='all'; syncUI(); };
+    fEl.appendChild(b);
+  });
+  // sentiment 필터
+  const sep=document.createElement('span');
+  sep.style.cssText='color:rgba(74,158,255,.2);padding:0 2px;align-self:center;font-size:14px;';
+  sep.textContent='|';
+  fEl.appendChild(sep);
+  Object.entries(SENTIMENTS).forEach(([k,s])=>{
+    const b=document.createElement('button');
+    b.className='f-btn'+(sentFilter===k?' active':'');
+    b.textContent=s.emoji+' '+s.label;
+    if(sentFilter===k){ b.style.borderColor=s.color; b.style.color=s.color; }
+    b.onclick=()=>{ sentFilter=k; activeFilter='all'; syncUI(); };
+    fEl.appendChild(b);
+  });
+  // 레전드
+  const lEl=document.getElementById('legend');
+  lEl.innerHTML='';
+  CATS.forEach(c=>{
+    const d=document.createElement('div'); d.className='leg';
+    d.innerHTML=`<div class="leg-dot" style="background:${c.color}"></div>${c.label}`;
+    lEl.appendChild(d);
+  });
+  // 카테고리 셀렉트
+  const sel=document.getElementById('edit-cat');
+  if(sel){
+    const cur=sel.value; sel.innerHTML='';
+    CATS.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.label; sel.appendChild(o); });
+    if(CATS.find(c=>c.id===cur)) sel.value=cur;
+  }
+}
+function visible(n){
+  if(sentFilter!=='all') return n.sentiment===sentFilter;
+  return activeFilter==='all'||n.cat===activeFilter;
+}
+
+// ═══════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════
+let hovered=null, selEdge=null;
+let connecting=false, connectSrc=null;
+let dragging=false, nodeDragging=false, dragN=null;
+let lastX=0, lastY=0, downX=0, downY=0, moved=false, shiftHeld=false;
+let centerNodeId = null;
+const TT = document.getElementById('tooltip');
+
+window.addEventListener('keydown', e=>{ shiftHeld=e.shiftKey; if(e.key==='Escape'&&connecting) toggleConnect(); });
+window.addEventListener('keyup',   e=>{ shiftHeld=e.shiftKey; });
+
+function gp(e){
+  if(e.touches&&e.touches.length)       return {x:e.touches[0].clientX,       y:e.touches[0].clientY};
+  if(e.changedTouches&&e.changedTouches.length) return {x:e.changedTouches[0].clientX, y:e.changedTouches[0].clientY};
+  return {x:e.clientX, y:e.clientY};
+}
+function hitN(mx,my){
+  let best=null, minD=30;
+  NODES.forEach(n=>{ if(!visible(n)) return; const d=Math.hypot(n.sx-mx,n.sy-my); if(d<minD){minD=d;best=n;} });
+  return best;
+}
+function hitE(mx,my){
+  let best=null, minD=18;
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b||!visible(a)||!visible(b)) return;
+    const dx=b.sx-a.sx, dy=b.sy-a.sy, len2=dx*dx+dy*dy;
+    if(len2<1) return;
+    const t=Math.max(0,Math.min(1,((mx-a.sx)*dx+(my-a.sy)*dy)/len2));
+    const d=Math.hypot(a.sx+t*dx-mx, a.sy+t*dy-my);
+    if(d<minD){minD=d;best=e;}
+  });
+  return best;
+}
+
+function onDown(e){
+  const p=gp(e); lastX=p.x; lastY=p.y; downX=p.x; downY=p.y; moved=false;
+  const mx=p.x-W/2, my=p.y-H/2;
+  const n=hitN(mx,my);
+  if(connecting){
+    if(n){ if(!connectSrc) connectSrc=n; else if(connectSrc.id!==n.id){ addEdge(connectSrc.id,n.id); connectSrc=null; } }
+    return;
+  }
+  if(n && !shiftHeld){ dragN=n; nodeDragging=false; autoRotate=false; return; }
+  dragging=true; autoRotate=false;
+}
+function onMove(e){
+  const p=gp(e);
+  const dx=p.x-lastX, dy=p.y-lastY;
+  if(Math.hypot(p.x-downX,p.y-downY)>5) moved=true;
+
+  if(dragN && !dragging){
+    if(!nodeDragging && Math.hypot(dx,dy)>6) nodeDragging=true;
+  }
+  if(nodeDragging && dragN){
+    const sc=1/(dragN.pscale||.75);
+    dragN.x += dx*Math.cos(-camY)*sc;
+    dragN.z += -dx*Math.sin(-camY)*sc;
+    dragN.y += dy*Math.cos(-camX)*sc;
+    dragN.vx=dragN.vy=dragN.vz=0;
+    lastX=p.x; lastY=p.y; return;
+  }
+  if(dragging){
+    if(shiftHeld){ panX+=dx; panY+=dy; }
+    else { camY+=dx*.006; camX+=dy*.006; }
+    lastX=p.x; lastY=p.y; return;
+  }
+  if(connecting) return;
+  // hover
+  const mx=p.x-W/2, my=p.y-H/2;
+  hovered  = hitN(mx,my);
+  selEdge  = hovered ? null : hitE(mx,my);
+  if(hovered){
+    TT.style.left=(p.x+14)+'px'; TT.style.top=(p.y-18)+'px';
+    document.getElementById('tt-cat').style.color = catColor(hovered.cat);
+    document.getElementById('tt-cat').textContent  = catLabel(hovered.cat);
+    document.getElementById('tt-name').textContent = hovered.label;
+    document.getElementById('tt-desc').innerHTML = (hovered.desc||'').replace(/\n/g,'<br>').replace(/\|/g,'<span style="color:rgba(74,158,255,.3)"> | </span>');
+    TT.classList.add('vis');
+  } else TT.classList.remove('vis');
+}
+function onUp(e){
+  const wasNodeDrag=nodeDragging, wasMoved=moved;
+  nodeDragging=false; dragN=null; dragging=false; moved=false;
+  if(connecting||wasNodeDrag) return;
+  if(wasMoved) return;
+  const p=gp(e);
+  const mx=p.x-W/2, my=p.y-H/2;
+  const n=hitN(mx,my);
+  if(n){ closeEPanel(); openEdit(n); return; }
+  const eid=hitE(mx,my);
+  if(eid){ closePanel(); openEPanel(eid); }
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup',   onUp);
+canvas.addEventListener('mouseleave',()=>{ dragging=false; nodeDragging=false; dragN=null; TT.classList.remove('vis'); });
+canvas.addEventListener('touchstart', e=>{ e.preventDefault(); onDown(e); },{passive:false});
+canvas.addEventListener('touchmove',  e=>{ e.preventDefault(); onMove(e); },{passive:false});
+canvas.addEventListener('touchend',   e=>{ e.preventDefault(); onUp(e);   },{passive:false});
+
+// ═══════════════════════════════════════
+// TOOLBAR ACTIONS
+// ═══════════════════════════════════════
+function toggleRotate(){ autoRotate=!autoRotate; document.getElementById('btn-rotate').classList.toggle('active',autoRotate); }
+
+// 제목 편집
+function startEditTitle(){
+  const t=document.getElementById('graph-title');
+  const i=document.getElementById('title-input');
+  i.value=t.textContent;
+  t.style.display='none'; i.style.display='inline-block';
+  i.focus(); i.select();
+}
+function saveTitle(){
+  const t=document.getElementById('graph-title');
+  const i=document.getElementById('title-input');
+  const v=i.value.trim()||'온톨로지';
+  t.textContent=v; t.style.display=''; i.style.display='none';
+  document.title=v;
+  save();
+}
+window.startEditTitle=startEditTitle; window.saveTitle=saveTitle;
+
+// 캡처
+function captureCanvas(){
+  const link=document.createElement('a');
+  link.download='ontology_'+new Date().toISOString().slice(0,10)+'.png';
+  link.href=canvas.toDataURL('image/png');
+  link.click();
+}
+function copyHTML(){
+  const html=document.documentElement.outerHTML;
+  navigator.clipboard.writeText(html)
+    .then(()=>alert('✓ HTML 전체가 클립보드에 복사됐어요!\n붙여넣기(Ctrl+V)해서 .html 파일로 저장하세요.'))
+    .catch(()=>{
+      // fallback
+      const ta=document.createElement('textarea');
+      ta.value=html; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('✓ HTML 전체가 클립보드에 복사됐어요!');
+    });
+}
+window.captureCanvas=captureCanvas; window.copyHTML=copyHTML;
+
+// Sentiment
+let editSent='';
+function setSent(v){
+  editSent=v;
+  ['none','good','ok','bad','warn'].forEach(k=>{
+    document.getElementById('sent-'+k).classList.toggle('active', v===(k==='none'?'':k));
+  });
+}
+window.setSent=setSent;
+function toggleConnect(){
+  connecting=!connecting; connectSrc=null;
+  document.getElementById('btn-connect').classList.toggle('active',connecting);
+  document.getElementById('modebanner').style.display = connecting?'block':'none';
+  if(connecting){ autoRotate=false; document.getElementById('btn-rotate').classList.remove('active'); }
+}
+function resetView(){
+  if(centerNodeId){
+    const cn=NODES.find(n=>n.id===centerNodeId);
+    if(cn){ const dx=-cn.x,dy=-cn.y,dz=-cn.z; NODES.forEach(n=>{ n.x+=dx; n.y+=dy; n.z+=dz; n.vx=n.vy=n.vz=0; }); }
+  }
+  camX=.3; camY=0; panX=0; panY=0;
+}
+function resetAll(){
+  if(!confirm('기본 35개 노드로 초기화할까요?')) return;
+  resetToDefaults(); placeAll(); forceFrames=0; activeFilter='all';
+  hovered=null; selEdge=null; centerNodeId=null;
+  closePanel(); closeEPanel();
+  save(); syncUI();
+}
+window.toggleRotate=toggleRotate; window.toggleConnect=toggleConnect;
+window.resetView=resetView; window.resetAll=resetAll;
+
+// ═══════════════════════════════════════
+// NODE PANEL
+// ═══════════════════════════════════════
+let selNode=null, curTab='form';
+function switchTab(t){
+  curTab=t;
+  document.getElementById('panel-body').style.display = t==='form'?'flex':'none';
+  document.getElementById('panel-code').style.display = t==='code'?'flex':'none';
+  document.getElementById('tab-form').classList.toggle('active',t==='form');
+  document.getElementById('tab-code').classList.toggle('active',t==='code');
+  if(t==='code'&&selNode) loadNodeToCode();
+}
+window.switchTab=switchTab;
+
+function openPanel(){ document.getElementById('panel').classList.add('open'); }
+function closePanel(){ document.getElementById('panel').classList.remove('open'); selNode=null; }
+window.closePanel=closePanel;
+
+function openAddNode(){
+  selNode=null;
+  document.getElementById('panel-title').textContent='NEW NODE';
+  document.getElementById('edit-id').value='';
+  document.getElementById('edit-label').value='';
+  document.getElementById('edit-cat').value = CATS[0]?.id||'macro';
+  document.getElementById('edit-size').value=16;
+  document.getElementById('edit-desc').value='';
+  setSent('');
+  document.getElementById('del-section').style.display='none';
+  switchTab('form'); openPanel();
+}
+window.openAddNode=openAddNode;
+
+function openEdit(n){
+  selNode=n;
+  document.getElementById('panel-title').textContent='EDIT NODE';
+  document.getElementById('edit-id').value=n.id;
+  document.getElementById('edit-label').value=n.label;
+  document.getElementById('edit-cat').value=n.cat;
+  document.getElementById('edit-size').value=n.size||16;
+  document.getElementById('edit-desc').value=n.desc||'';
+  setSent(n.sentiment||'');
+  document.getElementById('del-section').style.display='block';
+  // center btn
+  const cb=document.getElementById('btn-center');
+  if(centerNodeId===n.id){ cb.textContent='⌖ 중심: '+n.label; cb.style.borderColor='#51cf66'; cb.style.color='#51cf66'; }
+  else { cb.textContent='⌖ 중심 노드로 설정'; cb.style.borderColor=''; cb.style.color=''; }
+  // edge list - id 대신 라벨 표시
+  const el=document.getElementById('edge-list'); el.innerHTML='';
+  EDGES.filter(e=>e.s===n.id||e.t===n.id).forEach(e=>{
+    const otherId=e.s===n.id?e.t:e.s;
+    const otherNode=NODES.find(n=>n.id===otherId);
+    const otherLabel=otherNode?otherNode.label:otherId;
+    const dir=e.s===n.id?'→':'←';
+    const row=document.createElement('div'); row.className='edge-item';
+    row.innerHTML=`<span>${dir} ${otherLabel}${e.relation?' ('+e.relation+')':''}</span><button class="edge-del" onclick="removeEdge('${e.s}','${e.t}')">✕</button>`;
+    el.appendChild(row);
+  });
+  if(curTab==='code') loadNodeToCode();
+  openPanel();
+}
+
+function labelToId(label, excludeId){
+  let base=label.trim().replace(/\s+/g,'_').replace(/[()·\.\-\/]/g,'');
+  if(!base) base='node';
+  if(!NODES.find(n=>n.id===base&&n.id!==excludeId)) return base;
+  let i=2;
+  while(NODES.find(n=>n.id===base+'_'+i&&n.id!==excludeId)) i++;
+  return base+'_'+i;
+}
+
+function saveNode(){
+  const oldId = document.getElementById('edit-id').value;
+  const label = document.getElementById('edit-label').value.trim() || '새 노드';
+  const cat   = document.getElementById('edit-cat').value;
+  const size  = parseInt(document.getElementById('edit-size').value)||16;
+  const desc  = document.getElementById('edit-desc').value.trim();
+  const sentiment = editSent||'';
+
+  if(oldId){
+    // 기존 노드 수정
+    const newId = labelToId(label, oldId);
+    const ex = NODES.find(n=>n.id===oldId);
+    if(ex){
+      ex.label=label; ex.cat=cat; ex.size=size; ex.desc=desc; ex.sentiment=sentiment;
+      // id가 바뀌면 엣지도 같이 업데이트
+      if(newId!==oldId){
+        ex.id=newId;
+        EDGES.forEach(e=>{ if(e.s===oldId)e.s=newId; if(e.t===oldId)e.t=newId; });
+        if(centerNodeId===oldId) centerNodeId=newId;
+        document.getElementById('edit-id').value=newId;
+      }
+    }
+  } else {
+    // 신규 노드
+    const newId = labelToId(label);
+    const n={id:newId,label,cat,desc,size,...(sentiment?{sentiment}:{})};
+    NODES.push(n); place(n,NODES.length-1,NODES.length); forceFrames=0;
+    document.getElementById('edit-id').value=newId;
+  }
+  save(); closePanel();
+}
+function deleteNode(){
+  const id=document.getElementById('edit-id').value;
+  if(!id||!confirm('"'+document.getElementById('edit-label').value+'" 노드를 삭제할까요?')) return;
+  NODES=NODES.filter(n=>n.id!==id);
+  EDGES=EDGES.filter(e=>e.s!==id&&e.t!==id);
+  if(centerNodeId===id) centerNodeId=null;
+  save(); closePanel();
+}
+function setCenter(){
+  const id=document.getElementById('edit-id').value;
+  const label=document.getElementById('edit-label').value;
+  centerNodeId=id;
+  const cb=document.getElementById('btn-center');
+  cb.textContent='⌖ 중심: '+label; cb.style.borderColor='#51cf66'; cb.style.color='#51cf66';
+}
+function removeEdge(s,t){
+  EDGES=EDGES.filter(e=>!(e.s===s&&e.t===t));
+  save(); if(selNode) openEdit(selNode);
+}
+function loadNodeToCode(){
+  if(!selNode) return;
+  const {id,label,cat,desc,size}=selNode;
+  document.getElementById('node-code-ta').value=JSON.stringify({id,label,cat,desc,size},null,2);
+}
+function applyNodeCode(){
+  try{
+    const d=JSON.parse(document.getElementById('node-code-ta').value.trim());
+    if(!d.label) throw new Error('label은 필수예요');
+    if(selNode){
+      const ex=NODES.find(n=>n.id===selNode.id);
+      if(!ex) throw new Error('노드를 찾을 수 없어요');
+      const oldId=ex.id;
+      const newId=d.id&&d.id!==oldId ? d.id : oldId;
+      // id 변경 시 중복 체크
+      if(newId!==oldId && NODES.find(n=>n.id===newId))
+        throw new Error('이미 같은 id가 있어요: '+newId);
+      // 노드 업데이트
+      ex.id=newId;
+      ex.label=d.label;
+      ex.cat=d.cat||ex.cat;
+      ex.desc=d.desc||'';
+      ex.size=d.size||16;
+      // id 바뀌면 엣지도 업데이트
+      if(newId!==oldId){
+        EDGES.forEach(e=>{ if(e.s===oldId)e.s=newId; if(e.t===oldId)e.t=newId; });
+        if(centerNodeId===oldId) centerNodeId=newId;
+        selNode=ex;
+      }
+      save(); openEdit(ex);
+      alert('✓ 적용됐어요!');
+    } else {
+      if(!d.id) throw new Error('새 노드 추가 시 id는 필수예요');
+      if(NODES.find(n=>n.id===d.id)) throw new Error('이미 같은 id가 있어요: '+d.id);
+      const n={id:d.id,label:d.label,cat:d.cat||CATS[0].id,desc:d.desc||'',size:d.size||16};
+      NODES.push(n); place(n,NODES.length-1,NODES.length); forceFrames=0;
+      save(); alert('✓ 새 노드가 추가됐어요!');
+    }
+  }catch(err){ alert('오류: '+err.message); }
+}
+window.saveNode=saveNode; window.deleteNode=deleteNode; window.setCenter=setCenter;
+window.removeEdge=removeEdge; window.loadNodeToCode=loadNodeToCode; window.applyNodeCode=applyNodeCode;
+
+// ═══════════════════════════════════════
+// EDGE PANEL
+// ═══════════════════════════════════════
+let editEdge=null;
+function openEPanel(e){
+  editEdge=e; selEdge=e;
+  const na=NODES.find(n=>n.id===e.s), nb=NODES.find(n=>n.id===e.t);
+  const src=document.getElementById('ep-src'), tgt=document.getElementById('ep-tgt');
+  src.textContent=na?na.label:e.s; src.style.background='rgba('+hr(catColor(na?.cat))+',0.15)';
+  tgt.textContent=nb?nb.label:e.t; tgt.style.background='rgba('+hr(catColor(nb?.cat))+',0.15)';
+  document.getElementById('ep-w').value=e.w||2;
+  document.getElementById('ep-rel').value=e.relation||'';
+  updateW(e.w||2); setDir(e.dir||'both',true);
+  document.getElementById('epanel').classList.add('open');
+}
+function closeEPanel(){ document.getElementById('epanel').classList.remove('open'); editEdge=null; selEdge=null; }
+window.closeEPanel=closeEPanel;
+
+function setDir(dir, silent){
+  if(!silent&&editEdge) editEdge.dir=dir;
+  ['both','fwd','bwd'].forEach(d=>document.getElementById('dir-'+d).classList.toggle('active',d===dir));
+  document.getElementById('ep-arrow').textContent={both:'↔',fwd:'→',bwd:'←'}[dir]||'↔';
+}
+function updateW(v){ document.getElementById('ep-wval').textContent=v; document.getElementById('ep-wline').style.width=(v*20)+'px'; }
+function setRel(r){ document.getElementById('ep-rel').value=r; }
+function saveEdge(){
+  if(!editEdge) return;
+  editEdge.w=parseInt(document.getElementById('ep-w').value)||2;
+  editEdge.relation=document.getElementById('ep-rel').value.trim();
+  save(); closeEPanel();
+}
+function delEdge(){ if(!editEdge) return; EDGES=EDGES.filter(e=>e!==editEdge); save(); closeEPanel(); }
+function addEdge(s,t){
+  if(EDGES.find(e=>(e.s===s&&e.t===t)||(e.s===t&&e.t===s))) return;
+  EDGES.push({s,t,w:2,dir:'both'}); save(); forceFrames=0;
+}
+window.setDir=setDir; window.updateW=updateW; window.setRel=setRel;
+window.saveEdge=saveEdge; window.delEdge=delEdge;
+
+// ═══════════════════════════════════════
+// CATEGORY MODAL
+// ═══════════════════════════════════════
+function openCatModal(){ renderCats(); document.getElementById('catmodal').classList.add('open'); }
+function closeCatModal(){ document.getElementById('catmodal').classList.remove('open'); syncUI(); save(); }
+window.openCatModal=openCatModal; window.closeCatModal=closeCatModal;
+function renderCats(){
+  const el=document.getElementById('cat-list'); el.innerHTML='';
+  CATS.forEach((c,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(74,158,255,.05);border-radius:3px;';
+    row.innerHTML=`<input type="color" value="${c.color}" onchange="CATS[${i}].color=this.value;renderCats();" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:2px;">
+<input value="${c.label}" onchange="CATS[${i}].label=this.value" style="flex:1;background:rgba(74,158,255,.07);border:1px solid rgba(74,158,255,.2);color:#e8f4ff;padding:5px 8px;font-size:12px;border-radius:3px;outline:none;">
+<span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;">${NODES.filter(n=>n.cat===c.id).length}개</span>
+${CATS.length>1?`<button onclick="delCat('${c.id}')" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:14px;">✕</button>`:''}`;
+    el.appendChild(row);
+  });
+}
+function addCat(){
+  const label=document.getElementById('new-cat-label').value.trim();
+  if(!label) return;
+  CATS.push({id:'cat_'+Date.now(),label,color:document.getElementById('new-cat-color').value});
+  document.getElementById('new-cat-label').value='';
+  renderCats();
+}
+function delCat(id){
+  const count=NODES.filter(n=>n.cat===id).length;
+  if(count>0&&!confirm(`노드 ${count}개가 첫 번째 카테고리로 이동됩니다. 계속할까요?`)) return;
+  const fb=CATS.find(c=>c.id!==id)?.id;
+  NODES.forEach(n=>{ if(n.cat===id) n.cat=fb; });
+  CATS=CATS.filter(c=>c.id!==id);
+  renderCats();
+}
+window.addCat=addCat; window.delCat=delCat;
+
+// ═══════════════════════════════════════
+// SAVE / LOAD
+// ═══════════════════════════════════════
+function openSaveLoad(){
+  document.getElementById('save-name').value='ontology_'+new Date().toISOString().slice(0,10);
+  document.getElementById('code-ta').value='';
+  document.getElementById('savemodal').classList.add('open');
+}
+function closeSL(){ document.getElementById('savemodal').classList.remove('open'); }
+window.openSaveLoad=openSaveLoad; window.closeSL=closeSL;
+
+function saveFile(){
+  const name=document.getElementById('save-name').value.trim()||'ontology_'+new Date().toISOString().slice(0,10);
+  const filename=name.endsWith('.json')?name:name+'.json';
+  const data={
+    version:SCHEMA_VERSION,
+    centerNodeId:centerNodeId||null,
+    categories:CATS,
+    nodes:NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
+    edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+  };
+  const json=JSON.stringify(data,null,2);
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  if(isIOS){
+    const win=window.open('','_blank');
+    if(win){
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${filename}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;background:#04080f;color:#c8d8e8;font-family:sans-serif;}
+.bar{position:sticky;top:0;background:#0a1428;border-bottom:1px solid rgba(74,158,255,.3);padding:12px 16px;font-size:13px;color:#4a9eff;display:flex;align-items:center;gap:10px;}
+.bar b{color:#e8f4ff;}
+.hint{font-size:11px;color:#6a8aaa;margin-top:2px;}
+pre{padding:16px;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-all;}</style></head>
+<body><div class="bar">📋 <div><b>${filename}</b><div class="hint">공유 버튼(□↑) → 파일에 저장 · 또는 전체선택 후 복사</div></div></div>
+<pre>${json.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</pre></body></html>`);
+      win.document.close();
+    }
+  } else {
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  closeSL();
+}
+function loadFile(){
+  const fi=document.getElementById('file-input');
+  fi.onchange=e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{ try{ applyData(JSON.parse(ev.target.result)); }catch(err){ alert('파일 오류: '+err.message); } fi.value=''; };
+    reader.readAsText(file);
+  };
+  fi.click();
+}
+function codeFromCurrent(){
+  const data={
+    version:SCHEMA_VERSION,
+    centerNodeId:centerNodeId||null,
+    categories:CATS,
+    nodes:NODES.map(({id,label,cat,desc,size,sentiment})=>({id,label,cat,desc,size,...(sentiment?{sentiment}:{})})),
+    edges:EDGES.map(({s,t,w,relation,dir})=>({s,t,w,...(relation?{relation}:{}),...(dir&&dir!=='both'?{dir}:{})}))
+  };
+  document.getElementById('code-ta').value=JSON.stringify(data,null,2);
+}
+function applyCode(){
+  const raw=document.getElementById('code-ta').value.trim();
+  if(!raw){ alert('코드가 비어있어요'); return; }
+  try{ applyData(JSON.parse(raw)); }catch(err){ alert('오류: '+err.message); }
+}
+// ═══════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════
+let searchHighlight = new Set(); // 하이라이트할 노드 id들
+
+function openSearch(){
+  document.getElementById('searchmodal').classList.add('open');
+  setTimeout(()=>document.getElementById('search-input').focus(), 100);
+  doSearch('');
+}
+function closeSearch(){
+  document.getElementById('searchmodal').classList.remove('open');
+  searchHighlight.clear();
+  document.getElementById('search-input').value='';
+}
+window.openSearch=openSearch; window.closeSearch=closeSearch;
+
+function doSearch(q){
+  q = q.trim().toLowerCase();
+  searchHighlight.clear();
+  const el = document.getElementById('search-results');
+  el.innerHTML = '';
+
+  if(!q){
+    el.innerHTML='<div style="padding:16px;text-align:center;font-family:\'Space Mono\',monospace;font-size:10px;color:#4a6a8a;">검색어를 입력하세요</div>';
+    return;
+  }
+
+  // 각 노드에 대해 매치 점수 계산
+  const results = [];
+  NODES.forEach(n=>{
+    const matches = [];
+    const label = n.label||'';
+    const desc  = n.desc||'';
+
+    // 노드명 매치
+    if(label.toLowerCase().includes(q))
+      matches.push({type:'label', text:'이름: '+label});
+
+    // 설명 매치
+    if(desc.toLowerCase().includes(q)){
+      // 매치된 부분 주변 텍스트 추출
+      const idx = desc.toLowerCase().indexOf(q);
+      const snippet = desc.slice(Math.max(0,idx-15), idx+q.length+25);
+      matches.push({type:'desc', text:'설명: ...'+snippet+'...'});
+    }
+
+    // 연결된 엣지 relation 매치
+    EDGES.filter(e=>e.s===n.id||e.t===n.id).forEach(e=>{
+      if(e.relation && e.relation.toLowerCase().includes(q)){
+        const otherId = e.s===n.id?e.t:e.s;
+        const otherNode = NODES.find(x=>x.id===otherId);
+        const otherLabel = otherNode?otherNode.label:otherId;
+        const dir = e.s===n.id?'→':'←';
+        matches.push({type:'edge', text:`연결 (${e.relation}): ${dir} ${otherLabel}`});
+      }
+      // 연결된 노드명도 검색
+      const otherId = e.s===n.id?e.t:e.s;
+      const otherNode = NODES.find(x=>x.id===otherId);
+      if(otherNode && otherNode.label.toLowerCase().includes(q) && !label.toLowerCase().includes(q)){
+        const dir = e.s===n.id?'→':'←';
+        matches.push({type:'edge', text:`연결 노드: ${dir} ${otherNode.label}`});
+      }
+    });
+
+    if(matches.length){
+      results.push({node:n, matches});
+      searchHighlight.add(n.id);
+    }
+  });
+
+  if(!results.length){
+    el.innerHTML='<div style="padding:16px;text-align:center;font-family:\'Space Mono\',monospace;font-size:10px;color:#4a6a8a;">검색 결과 없음</div>';
+    return;
+  }
+
+  // 결과 렌더
+  results.forEach(({node:n, matches})=>{
+    const col = catColor(n.cat);
+    const item = document.createElement('div');
+    item.style.cssText='padding:10px 16px;cursor:pointer;border-bottom:1px solid rgba(74,158,255,.06);transition:background .15s;';
+    item.onmouseenter=()=>item.style.background='rgba(74,158,255,.08)';
+    item.onmouseleave=()=>item.style.background='';
+    item.onclick=()=>{ focusNode(n); };
+
+    const typeColors = {label:'#4a9eff', desc:'#8aaccc', edge:'#ff922b'};
+    const matchHtml = matches.map(m=>`
+      <div style="font-size:10px;color:${typeColors[m.type]||'#8aaccc'};margin-top:3px;opacity:.85;">
+        ${highlight(m.text, q)}
+      </div>`).join('');
+
+    item.innerHTML=`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+        <span style="font-size:13px;font-weight:700;color:#e8f4ff;">${highlight(n.label,q)}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:9px;color:#4a6a8a;margin-left:auto;">${catLabel(n.cat)}</span>
+      </div>
+      ${matchHtml}
+    `;
+    el.appendChild(item);
+  });
+
+  // 결과 수 표시
+  const cnt = document.createElement('div');
+  cnt.style.cssText='padding:8px 16px;font-family:\'Space Mono\',monospace;font-size:9px;color:#4a6a8a;border-top:1px solid rgba(74,158,255,.1);';
+  cnt.textContent = results.length+'개 노드 발견';
+  el.appendChild(cnt);
+}
+
+function highlight(text, q){
+  if(!q) return text;
+  const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')', 'gi');
+  return text.replace(re,'<mark style="background:rgba(74,158,255,.3);color:#e8f4ff;border-radius:2px;padding:0 2px;">$1</mark>');
+}
+
+function focusNode(n){
+  // 해당 노드를 화면 중앙으로
+  const dx=-n.x, dy=-n.y, dz=-n.z;
+  NODES.forEach(m=>{ m.x+=dx; m.y+=dy; m.z+=dz; m.vx=m.vy=m.vz=0; });
+  panX=0; panY=0;
+  // 패널 열기
+  closeSearch();
+  openEdit(n);
+}
+window.doSearch=doSearch;
+
+window.saveFile=saveFile; window.loadFile=loadFile;
+window.codeFromCurrent=codeFromCurrent; window.applyCode=applyCode;
+
+function applyData(data){
+  if(!data||!Array.isArray(data.nodes)||!data.nodes.length)
+    throw new Error('nodes 배열이 없거나 비어있어요');
+  const fv = data.version||1;
+  if(fv>SCHEMA_VERSION && !confirm(`더 최신 버전(v${fv}) 파일이에요. 계속 열까요?`)) return;
+  CATS  = (Array.isArray(data.categories)&&data.categories.length) ? JSON.parse(JSON.stringify(data.categories)) : JSON.parse(JSON.stringify(DEF_CATS));
+  NODES = data.nodes.map((n,i)=>({ id:n.id||('n'+i), label:n.label||'노드', cat:n.cat||CATS[0].id, desc:n.desc||'', size:n.size||16, ...(n.sentiment?{sentiment:n.sentiment}:{}), x:0,y:0,z:0, vx:0,vy:0,vz:0, sx:0,sy:0, pscale:.75, depth:0 }));
+  for(let i=0;i<NODES.length;i++) place(NODES[i],i,NODES.length);
+  EDGES = Array.isArray(data.edges) ? data.edges.map(e=>({ s:e.s,t:e.t,w:e.w||2, ...(e.relation?{relation:e.relation}:{}), ...(e.dir?{dir:e.dir}:{}) })) : [];
+  forceFrames=0; activeFilter='all'; sentFilter='all';
+  centerNodeId = data.centerNodeId || null;
+  if(data.title){ document.getElementById('graph-title').textContent=data.title; document.title=data.title; }
+  hovered=null; selEdge=null; editEdge=null; selNode=null;
+  closePanel(); closeEPanel(); closeSL();
+  save(); syncUI();
+  alert('✓ '+NODES.length+'개 노드, '+EDGES.length+'개 엣지 불러왔어요! (schema v'+fv+')');
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function ha(hex,a){ if(!hex||hex.length<7) return`rgba(74,158,255,${a})`; return`rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`; }
+function hr(hex){ if(!hex||hex.length<7) return'74,158,255'; return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`; }
+
+// ═══════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
+
+  // project
+  NODES.forEach(n=>{
+    const p=proj(n.x,n.y,n.z);
+    n.sx=p.sx+panX; n.sy=p.sy+panY; n.pscale=p.sc; n.depth=p.depth;
+  });
+  const cx=W/2, cy=H/2;
+
+  // edges
+  EDGES.forEach(e=>{
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    if(!a||!b) return;
+    const av=visible(a), bv=visible(b);
+    if(!av&&!bv) return;
+    const isH=hovered&&(hovered.id===a.id||hovered.id===b.id);
+    const isS=selEdge===e;
+    const w=e.w||2;
+    const ba=(av&&bv)?0.15*w:.04;
+    const la=isS?.95:isH?Math.min(ba*4,.85):ba;
+    const lw=isS?3:isH?1.8:.6+w*.2;
+    const ca=catColor(a.cat), cb=catColor(b.cat);
+    const ax=a.sx+cx,ay=a.sy+cy,bx=b.sx+cx,by=b.sy+cy;
+
+    const g=ctx.createLinearGradient(ax,ay,bx,by);
+    g.addColorStop(0,ha(isS?'#ff922b':ca,la));
+    g.addColorStop(1,ha(isS?'#ff922b':cb,la));
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
+    ctx.strokeStyle=g; ctx.lineWidth=lw; ctx.stroke();
+
+    // arrows
+    if(isS||isH){
+      const dir=e.dir||'both';
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      const ang=Math.atan2(by-ay,bx-ax), as=isS?9:6;
+      const ac=isS?'rgba(255,146,43,.9)':ha(ca,.7);
+      ctx.save(); ctx.translate(mx,my);
+      if(dir==='fwd'||dir==='both'){
+        ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(as,0); ctx.lineTo(-as*.6,as*.5); ctx.lineTo(-as*.6,-as*.5); ctx.closePath();
+        ctx.fillStyle=ac; ctx.fill();
+        ctx.setTransform(1,0,0,1,0,0); ctx.translate(mx,my);
+      }
+      if(dir==='bwd'||dir==='both'){
+        ctx.rotate(ang+Math.PI);
+        ctx.beginPath(); ctx.moveTo(as,0); ctx.lineTo(-as*.6,as*.5); ctx.lineTo(-as*.6,-as*.5); ctx.closePath();
+        ctx.fillStyle=ac; ctx.fill();
+      }
+      ctx.restore();
+      if(isS){ ctx.fillStyle='rgba(255,146,43,.7)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('탭→편집',mx,(ay+by)/2-16); }
+    }
+    // relation label
+    if(e.relation&&av&&bv){
+      const mx=(ax+bx)/2, my=(ay+by)/2;
+      const la2=isS?1:isH?.9:Math.min(ba*2,.4);
+      ctx.save();
+      ctx.font="10px 'Noto Sans KR'"; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const tw=ctx.measureText(e.relation).width;
+      ctx.fillStyle=`rgba(4,8,20,${la2*.9})`; ctx.fillRect(mx-tw/2-4,my-8,tw+8,16);
+      ctx.fillStyle=`rgba(255,146,43,${la2})`; ctx.fillText(e.relation,mx,my);
+      ctx.restore();
+    }
+  });
+
+  // connect preview
+  if(connecting&&connectSrc){
+    ctx.beginPath(); ctx.moveTo(connectSrc.sx+cx,connectSrc.sy+cy); ctx.lineTo(lastX,lastY);
+    ctx.strokeStyle='rgba(74,158,255,.5)'; ctx.lineWidth=1.5; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // nodes
+  [...NODES].sort((a,b)=>a.depth-b.depth).forEach(n=>{
+    const vis=visible(n);
+    const isH=hovered&&hovered.id===n.id;
+    const isSearch=searchHighlight.size>0&&searchHighlight.has(n.id);
+    const isSrc=connectSrc&&connectSrc.id===n.id;
+    const r=(n.size||16)*n.pscale*(isH||isSrc||isSearch?1.35:1);
+    const al=vis?(searchHighlight.size>0&&!isSearch?.15:1):.1;
+    const col=catColor(n.cat);
+    const x=n.sx+cx, y=n.sy+cy;
+
+    if(vis){
+      const gw=ctx.createRadialGradient(x,y,0,x,y,r*3.2);
+      gw.addColorStop(0,ha(col,isSrc?.4:isSearch?.35:isH?.22:.09));
+      gw.addColorStop(1,ha(col,0));
+      ctx.beginPath(); ctx.arc(x,y,r*3.2,0,Math.PI*2); ctx.fillStyle=gw; ctx.fill();
+    }
+    const ng=ctx.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r);
+    ng.addColorStop(0,ha(col,al)); ng.addColorStop(.6,ha(col,al*.7)); ng.addColorStop(1,ha(col,al*.2));
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=ng; ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.strokeStyle=ha(col,vis?(isSrc?1:isH?.95:.6):.1);
+    ctx.lineWidth=isSrc?2.5:isH?2:.8; ctx.stroke();
+
+    if(vis&&r>5){
+      ctx.fillStyle=`rgba(232,244,255,${isH?1:Math.min(1,r/8)})`;
+      ctx.font=`${isH?'bold ':''} ${Math.max(9,Math.min(13,r*1.1))}px 'Noto Sans KR'`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(n.label,x,y+r+10);
+    }
+    // sentiment 이모티콘
+    if(n.sentiment&&SENTIMENTS[n.sentiment]){
+      ctx.font=`${Math.max(10,Math.min(16,r*.9))}px sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(SENTIMENTS[n.sentiment].emoji,x,y-r-8);
+    }
+    if(isSrc){ ctx.fillStyle='rgba(74,158,255,.9)'; ctx.font='bold 9px monospace'; ctx.textAlign='center'; ctx.fillText('SOURCE',x,y-r-8); }
+  });
+
+  document.getElementById('nc').textContent=NODES.filter(visible).length;
+  document.getElementById('ec').textContent=EDGES.filter(e=>{ const a=NODES.find(n=>n.id===e.s),b=NODES.find(n=>n.id===e.t); return a&&b&&visible(a)&&visible(b); }).length;
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+tryLoad();
+placeAll();
+syncUI();
+
+function loop(){
+  if(forceFrames<140){ forceStep(); forceFrames++; }
+  if(autoRotate) camY+=.003;
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ═══════════════════════════════════════
+// XMIND 뷰어
+// ═══════════════════════════════════════
+function openXmind(){
+  document.getElementById('xmindmodal').classList.add('open');
+}
+function closeXmind(){
+  document.getElementById('xmindmodal').classList.remove('open');
+}
+function reloadXmind(){
+  const url = document.getElementById('xmind-url').value.trim();
+  if(url) document.getElementById('xmind-iframe').src = url;
+}
+
+// ═══════════════════════════════════════
+// 지분도 뷰어
+// ═══════════════════════════════════════
+let _jibundoFiltered = [...JIBUNDO_DATA];
+
+function openJibundo(){
+  document.getElementById('jibundoModal').classList.add('open');
+  renderJibundo(_jibundoFiltered);
+}
+function closeJibundo(){
+  document.getElementById('jibundoModal').classList.remove('open');
+}
+function filterJibundo(q){
+  const kw = q.trim().toLowerCase();
+  _jibundoFiltered = kw
+    ? JIBUNDO_DATA.filter(d =>
+        d.name.includes(q) ||
+        d.owner.includes(q) ||
+        d.key.toLowerCase().includes(kw)
+      )
+    : [...JIBUNDO_DATA];
+  renderJibundo(_jibundoFiltered);
+}
+function renderJibundo(list){
+  const el = document.getElementById('jibundo-list');
+  el.innerHTML = list.map(d => {
+    const catMap = {
+      top10: '#4a9eff', top30: '#51cf66', top60: '#ffd43b', top92: '#ff922b'
+    };
+    const cat = d.rank<=10 ? 'top10' : d.rank<=30 ? 'top30' : d.rank<=60 ? 'top60' : 'top92';
+    const col = catMap[cat];
+    return `<div onclick="addNodeFromJibundo(${d.rank})" style="cursor:pointer;padding:8px 10px;background:rgba(10,20,40,.8);border:1px solid rgba(74,158,255,.15);border-radius:4px;min-width:160px;flex:0 0 auto;transition:all .15s;" onmouseenter="this.style.borderColor='${col}';this.style.background='rgba(20,40,80,.9)'" onmouseleave="this.style.borderColor='rgba(74,158,255,.15)';this.style.background='rgba(10,20,40,.8)'">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="font-family:'Space Mono',monospace;font-size:9px;color:${col};min-width:24px;">#${d.rank}</span>
+        <span style="font-weight:700;font-size:13px;color:#e8f4ff;">${d.name}</span>
+      </div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:#6a8aaa;">동일인: ${d.owner}</div>
+      <div style="margin-top:4px;font-size:10px;color:#4a7a9a;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${d.key}</div>
+    </div>`;
+  }).join('');
+}
+function addNodeFromJibundo(rank){
+  const d = JIBUNDO_DATA.find(x=>x.rank===rank);
+  if(!d) return;
+  const cat = rank<=10?'top10':rank<=30?'top30':rank<=60?'top60':'top92';
+  const size = rank<=10?Math.max(16,28-rank):rank<=30?14:rank<=60?11:9;
+  const existing = NODES.find(n=>n.id==='jb_'+d.name.replace(/\s/g,'_'));
+  if(existing){ alert(`"${d.name}" 노드가 이미 존재합니다.`); return; }
+  const newNode = {
+    id: 'jb_'+d.name.replace(/\s/g,'_'),
+    label: d.name,
+    cat: cat,
+    size: size,
+    desc: `동일인: ${d.owner} | 공정위 2025 #${rank}위\n주요 계열사: ${d.key}`
+  };
+  NODES.push(newNode);
+  placeAll(); syncUI(); saveState();
+  closeJibundo();
+  setTimeout(()=>{ focusNode(newNode.id); }, 300);
+  showBanner(`✅ "${d.name}" 노드 추가됨`);
+}
+function showBanner(msg){
+  const b = document.getElementById('modebanner');
+  b.textContent = msg; b.style.display='block';
+  setTimeout(()=>{ b.style.display='none'; }, 2000);
+}
+function focusNode(id){
+  const n = NODES.find(x=>x.id===id);
+  if(n){ camX = -(n.sx||0); camY = 0; }
+}
+
+// ═══════════════════════════════════════
+// 노드 패널 description 멀티라인 처리
+// (윤곽선 지원: 줄바꿈 → 구조화)
+// ═══════════════════════════════════════
+
+</script>
+</body>
+</html>
