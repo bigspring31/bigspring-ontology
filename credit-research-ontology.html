@@ -143,6 +143,17 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
   <div class="tb-sep"></div>
   <button class="tb-btn" id="btn-res" onclick="toggleResOnly()" style="color:rgba(255,210,60,.9);border-color:rgba(255,210,60,.3);">✦ 리서치만 보기</button>
   <div class="tb-sep"></div>
+  <div style="display:flex;flex-direction:column;gap:3px;background:rgba(10,20,40,.75);border:1px solid rgba(74,158,255,.18);border-radius:3px;padding:7px 10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+      <button onclick="zoomOut()" style="background:none;border:none;color:#4a9eff;font-size:15px;cursor:pointer;line-height:1;padding:0 2px;">&#8722;</button>
+      <span id="zoom-pct" style="font-family:'Space Mono',monospace;font-size:11px;color:#4a9eff;min-width:40px;text-align:center;">100%</span>
+      <button onclick="zoomIn()"  style="background:none;border:none;color:#4a9eff;font-size:15px;cursor:pointer;line-height:1;padding:0 2px;">&#65291;</button>
+    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:8px;color:rgba(74,158,255,.35);line-height:1.7;text-align:center;">
+      alt+scroll 줌&nbsp;&nbsp;shift+drag 이동
+    </div>
+  </div>
+  <div class="tb-sep"></div>
   <button class="tb-btn danger" onclick="resetAll()" style="font-size:9px;padding:5px 8px;opacity:.7;letter-spacing:0;width:50%;">↺ 초기화</button>
 </div>
 
@@ -1863,10 +1874,13 @@ function forceStep(){
 }
 
 let camX=.3, camY=0, panX=0, panY=0, autoRotate=true;
+let zoomLevel=1.0;
+function _clampZoom(v){return Math.max(0.1,Math.min(8,v));}
+function _zoomPct(){return Math.round(zoomLevel*100)+"%";}
 function proj(x,y,z){
   const cx=x*Math.cos(camY)-z*Math.sin(camY), cz=x*Math.sin(camY)+z*Math.cos(camY);
   const cy=y*Math.cos(camX)-cz*Math.sin(camX), fz=y*Math.sin(camX)+cz*Math.cos(camX);
-  const sc=900/(900+fz+300);
+  const sc=900/(900+fz+300)*zoomLevel;
   return {sx:cx*sc, sy:cy*sc, sc, depth:fz};
 }
 
@@ -1963,6 +1977,20 @@ const TT = document.getElementById('tooltip');
 
 window.addEventListener('keydown', e=>{ shiftHeld=e.shiftKey; if(e.key==='Escape'&&connecting) toggleConnect(); });
 window.addEventListener('keyup',   e=>{ shiftHeld=e.shiftKey; });
+// Alt+스크롤 줌
+addEventListener('wheel', function(e){
+  if(!e.altKey) return;
+  e.preventDefault();
+  zoomLevel = _clampZoom(zoomLevel * (e.deltaY > 0 ? 0.92 : 1.09));
+  _updateZoomUI();
+  autoRotate = false;
+}, {passive: false});
+function _updateZoomUI(){
+  var el=document.getElementById('zoom-pct');
+  if(el) el.textContent=_zoomPct();
+}
+function zoomIn(){ zoomLevel=_clampZoom(zoomLevel*1.2); _updateZoomUI(); autoRotate=false; }
+function zoomOut(){ zoomLevel=_clampZoom(zoomLevel/1.2); _updateZoomUI(); autoRotate=false; }
 
 function gp(e){
   if(e.touches&&e.touches.length)       return {x:e.touches[0].clientX,       y:e.touches[0].clientY};
@@ -2139,7 +2167,7 @@ function resetView(){
     const cn=NODES.find(n=>n.id===centerNodeId);
     if(cn){ const dx=-cn.x,dy=-cn.y,dz=-cn.z; NODES.forEach(n=>{ n.x+=dx; n.y+=dy; n.z+=dz; n.vx=n.vy=n.vz=0; }); }
   }
-  camX=.3; camY=0; panX=0; panY=0;
+  camX=.3; camY=0; panX=0; panY=0; zoomLevel=1.0; _updateZoomUI();
 }
 function resetAll(){
   if(!confirm('107개 기본 노드로 초기화할까요?')) return; expandedGroups.clear(); Object.keys(affCache).forEach(function(k){delete affCache[k];});
@@ -2340,7 +2368,7 @@ function applyNodeCode(){
     }
   }catch(err){ alert('오류: '+err.message); }
 }
-window.saveNode=saveNode; window.toggleGlow=toggleGlow; window.toggleResOnly=toggleResOnly; window.deleteNode=deleteNode; window.setCenter=setCenter;
+window.saveNode=saveNode; window.toggleGlow=toggleGlow; window.toggleResOnly=toggleResOnly; window.zoomIn=zoomIn; window.zoomOut=zoomOut; window.deleteNode=deleteNode; window.setCenter=setCenter;
 window.removeEdge=removeEdge; window.loadNodeToCode=loadNodeToCode; window.applyNodeCode=applyNodeCode;
 
 // ═══════════════════════════════════════
