@@ -324,7 +324,6 @@ textarea.fi{resize:vertical;min-height:70px;line-height:1.5;}
 </div>
 
 <script>
-<script>
 // ═══════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════
@@ -332,7 +331,168 @@ const SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'credit_research_v1';
 
 // ═══════════════════════════════════════
-// AFFILIATES DATA
+// DEFAULT DATA
+// ═══════════════════════════════════════
+const DEF_CATS=[
+  {id:'top10',  label:'TOP 10 그룹',    color:'#4a9eff'},
+  {id:'top30',  label:'TOP 11-30 그룹', color:'#51cf66'},
+  {id:'top60',  label:'TOP 31-60 그룹', color:'#ffd43b'},
+  {id:'top92',  label:'TOP 61-92 그룹', color:'#ff922b'},
+  {id:'sector', label:'섹터 / 업종',    color:'#cc5de8'},
+  {id:'credit', label:'크레딧 개념',    color:'#ff6b6b'},
+];
+const DEF_NODES=[
+  {id:"samsung",label:"삼성",cat:"top10",rank:1,size:28,desc:"동일인: 이재용 | #1위 | 삼성물산 19.8% | 계열사 0개"},
+  {id:"sk",label:"에스케이",cat:"top10",rank:2,size:28,desc:"동일인: 최태원 | #2위 | SK(주) 17.8% | 계열사 33개"},
+  {id:"hyundai",label:"현대자동차",cat:"top10",rank:3,size:28,desc:"동일인: 정의선 | #3위 | 현대글로비스 20.0% | 계열사 18개"},
+  {id:"lg",label:"엘지",cat:"top10",rank:4,size:24,desc:"동일인: 구광모 | #4위 | LG(주) 15.7% | 계열사 13개"},
+  {id:"lotte",label:"롯데",cat:"top10",rank:5,size:24,desc:"동일인: 신동빈 | #5위 | 롯데지주 13.0% | 계열사 12개"},
+  {id:"posco",label:"포스코",cat:"top10",rank:6,size:24,desc:"동일인: 포스코홀딩스 | #6위 | 법인지배 | 계열사 8개"},
+  {id:"hanwha",label:"한화",cat:"top10",rank:7,size:24,desc:"동일인: 김승연 | #7위 | 한화(주) 10.53% | 계열사 24개"},
+  {id:"hd_hd",label:"HD현대",cat:"top10",rank:8,size:24,desc:"동일인: 정몽준 | #8위 | HD현대 26.6% | 계열사 17개"},
+  {id:"nonghyup",label:"농협",cat:"top10",rank:9,size:24,desc:"동일인: 농협중앙회 | #9위 | 조합→중앙회 | 계열사 14개"},
+  {id:"gs",label:"지에스",cat:"top10",rank:10,size:24,desc:"동일인: 허창수 | #10위 | GS(주) 4.59% | 계열사 21개"},
+  {id:"shinsegae",label:"신세계",cat:"top30",rank:11,size:18,desc:"동일인: 이명희 | #11위 | 신세계 10.2% | 계열사 37개"},
+  {id:"hanjin",label:"한진",cat:"top30",rank:12,size:18,desc:"동일인: 조원태 | #12위 | 한진칼 5.73% | 계열사 11개"},
+  {id:"kt",label:"케이티",cat:"top30",rank:13,size:18,desc:"동일인: KT(법인) | #13위 | 자기주식 2.8% | 계열사 5개"},
+  {id:"cj",label:"씨제이",cat:"top30",rank:14,size:18,desc:"동일인: 이재현 | #14위 | CJ 34.4% | 계열사 14개"},
+  {id:"ls",label:"엘에스",cat:"top30",rank:15,size:18,desc:"동일인: 구자은 | #15위 | LS(주) 3.63% | 계열사 19개"},
+  {id:"kakao",label:"카카오",cat:"top30",rank:16,size:18,desc:"동일인: 김범수 | #16위 | 카카오 13.3% | 계열사 17개"},
+  {id:"hmm",label:"에이치엠엠",cat:"top30",rank:17,size:18,desc:"동일인: HMM(법인) | #17위 | 산업은행·해양진흥공사 | 계열사 4개"},
+  {id:"doosan",label:"두산",cat:"top30",rank:18,size:18,desc:"동일인: 박정원 | #18위 | 두산(주) 6.0% | 계열사 10개"},
+  {id:"dl",label:"DL",cat:"top30",rank:19,size:18,desc:"동일인: 이해욱 | #19위 | 대림 52.3% | 계열사 8개"},
+  {id:"joonghung",label:"중흥건설",cat:"top30",rank:20,size:18,desc:"동일인: 정창선 | #20위 | 중흥건설 76.7% | 계열사 4개"},
+  {id:"celltrion",label:"셀트리온",cat:"top60",rank:21,size:14,desc:"동일인: 서정진 | #21위 | 셀트리온홀딩스 98.1% | 계열사 2개"},
+  {id:"naver",label:"네이버",cat:"top60",rank:22,size:14,desc:"동일인: 이해진 | #22위 | 네이버 3.8% | 계열사 7개"},
+  {id:"soil",label:"에쓰-오일",cat:"top60",rank:23,size:14,desc:"동일인: 에쓰-오일(법인) | #23위 | 아람코 자회사 | 계열사 1개"},
+  {id:"mirae",label:"미래에셋",cat:"top60",rank:24,size:14,desc:"동일인: 박현주 | #24위 | 미래에셋자산운용 60.2% | 계열사 9개"},
+  {id:"coupang",label:"쿠팡",cat:"top60",rank:25,size:14,desc:"동일인: 쿠팡(법인) | #25위 | NYSE 상장 | 계열사 4개"},
+  {id:"hyundai_dept",label:"현대백화점",cat:"top60",rank:26,size:14,desc:"동일인: 정지선 | #26위 | 현대지에프홀딩스 39.7% | 계열사 19개"},
+  {id:"hankook",label:"한국앤컴퍼니",cat:"top60",rank:27,size:14,desc:"동일인: 조양래 | #27위 | 한국앤컴퍼니 20.0% | 계열사 10개"},
+  {id:"booyoung",label:"부영",cat:"top60",rank:28,size:14,desc:"동일인: 이중근 | #28위 | 부영 93.79% | 계열사 6개"},
+  {id:"youngpoong",label:"영풍",cat:"top60",rank:29,size:14,desc:"동일인: 장형진 | #29위 | 영풍 직접보유 | 계열사 4개"},
+  {id:"harim",label:"하림",cat:"top60",rank:30,size:14,desc:"동일인: 김홍국 | #30위 | 하림지주 21.1% | 계열사 8개"},
+  {id:"hyosung",label:"효성",cat:"top60",rank:31,size:14,desc:"동일인: 조현준 | #31위 | 효성(주) 직접보유 | 계열사 10개"},
+  {id:"janggeum",label:"장금상선",cat:"top60",rank:32,size:14,desc:"동일인: 정태순 | #32위 | 장금상선 17.0% | 계열사 3개"},
+  {id:"sm_group",label:"SM",cat:"top60",rank:33,size:14,desc:"동일인: 우오현 | #33위 | 삼라마이다스 74.0% | 계열사 14개"},
+  {id:"hdc",label:"에이치디씨",cat:"top60",rank:34,size:14,desc:"동일인: 정몽규 | #34위 | HDC 33.7% | 계열사 7개"},
+  {id:"hoban",label:"호반건설",cat:"top60",rank:35,size:14,desc:"동일인: 김상열 | #35위 | 호반건설 10.5% | 계열사 10개"},
+  {id:"dunamu",label:"두나무",cat:"top60",rank:36,size:14,desc:"동일인: 두나무(법인) | #36위 | 법인 자체 | 계열사 4개"},
+  {id:"ktng",label:"케이티앤지",cat:"top60",rank:37,size:14,desc:"동일인: KT&G(법인) | #37위 | 법인 자체 | 계열사 4개"},
+  {id:"kolon",label:"코오롱",cat:"top60",rank:38,size:14,desc:"동일인: 이웅열 | #38위 | 코오롱(주) 45.8% | 계열사 6개"},
+  {id:"kcc",label:"케이씨씨",cat:"top60",rank:39,size:14,desc:"동일인: 정몽진 | #39위 | KCC 20.0% | 계열사 5개"},
+  {id:"db_group",label:"DB",cat:"top92",rank:40,size:14,desc:"동일인: 김준기 | #40위 | DB Inc. 15.9% | 계열사 0개"},
+  {id:"nexon",label:"넥슨",cat:"top92",rank:41,size:11,desc:"동일인: 유정현 | #41위 | 엔엑스씨 33.4% | 계열사 0개"},
+  {id:"oci",label:"오씨아이",cat:"top92",rank:42,size:11,desc:"동일인: 이우현 | #42위 | OCI홀딩스 7.12% | 계열사 0개"},
+  {id:"lx",label:"엘엑스",cat:"top92",rank:43,size:11,desc:"동일인: 구본준 | #43위 | LX홀딩스 20.0% | 계열사 0개"},
+  {id:"seah",label:"세아",cat:"top92",rank:44,size:11,desc:"동일인: 이순형 | #44위 | 세아홀딩스 4.0% | 계열사 0개"},
+  {id:"netmarble",label:"넷마블",cat:"top92",rank:45,size:11,desc:"동일인: 방준혁 | #45위 | 인디스에어 99.4% | 계열사 0개"},
+  {id:"eland",label:"이랜드",cat:"top92",rank:46,size:11,desc:"동일인: 박성수 | #46위 | 이랜드월드 40.7% | 계열사 0개"},
+  {id:"kyobo",label:"교보생명보험",cat:"top92",rank:47,size:11,desc:"동일인: 신창재 | #47위 | 교보생명 33.8% | 계열사 0개"},
+  {id:"koreagm",label:"한국지엠",cat:"top92",rank:48,size:11,desc:"동일인: GM그룹 | #48위 | GM 46.1% | 계열사 0개"},
+  {id:"daou_kiwoom",label:"다우키움",cat:"top92",rank:49,size:11,desc:"동일인: 김익래 | #49위 | 다우데이타 23.0% | 계열사 0개"},
+  {id:"kumho_petro",label:"금호석유화학",cat:"top92",rank:50,size:11,desc:"동일인: 박찬구 | #50위 | 금호석유화학 6.9% | 계열사 0개"},
+  {id:"daebang",label:"대방건설",cat:"top92",rank:51,size:11,desc:"동일인: 구교운 | #51위 | 대방건설 직접 | 계열사 0개"},
+  {id:"taeyoung",label:"태영",cat:"top92",rank:52,size:11,desc:"동일인: 윤세영 | #52위 | 티와이홀딩스 0.5% | 계열사 0개"},
+  {id:"samchully",label:"삼천리",cat:"top92",rank:53,size:11,desc:"동일인: 이만득 | #53위 | 삼천리 8.3% | 계열사 0개"},
+  {id:"kg",label:"KG",cat:"top92",rank:54,size:11,desc:"동일인: 곽재선 | #54위 | KG케미칼 16.3% | 계열사 0개"},
+  {id:"ecopro",label:"에코프로",cat:"top92",rank:55,size:11,desc:"동일인: 이동채 | #55위 | 에코프로 18.8% | 계열사 0개"},
+  {id:"hl",label:"HL",cat:"top92",rank:56,size:11,desc:"동일인: 정몽원 | #56위 | HL홀딩스 27.07% | 계열사 0개"},
+  {id:"dongwon",label:"동원",cat:"top92",rank:57,size:11,desc:"동일인: 김남정 | #57위 | 동원산업 59.9% | 계열사 0개"},
+  {id:"amore",label:"아모레퍼시픽",cat:"top92",rank:58,size:11,desc:"동일인: 서경배 | #58위 | 아모레퍼시픽홀딩스 48.7% | 계열사 0개"},
+  {id:"taekwang",label:"태광",cat:"top92",rank:59,size:11,desc:"동일인: 이호진 | #59위 | 흥국생명 47.73% | 계열사 0개"},
+  {id:"krafton",label:"크래프톤",cat:"top92",rank:60,size:11,desc:"동일인: 장병규 | #60위 | 크래프톤 14.9% | 계열사 0개"},
+  {id:"globalseah",label:"글로벌세아",cat:"top92",rank:61,size:11,desc:"동일인: 김웅기 | #61위 | 글로벌세아 84.8% | 계열사 0개"},
+  {id:"kai",label:"한국항공우주산업",cat:"top92",rank:62,size:11,desc:"동일인: KAI(법인) | #62위 | 공동지배 | 계열사 0개"},
+  {id:"mdm",label:"엠디엠",cat:"top92",rank:63,size:11,desc:"동일인: 문주현 | #63위 | 엠디엠 95.0% | 계열사 0개"},
+  {id:"sono",label:"소노인터내셔널",cat:"top92",rank:64,size:11,desc:"동일인: 박춘희 | #64위 | 소노인터내셔널 33.2% | 계열사 0개"},
+  {id:"aekyung",label:"애경",cat:"top92",rank:65,size:11,desc:"동일인: 장영신 | #65위 | AK홀딩스 7.4% | 계열사 0개"},
+  {id:"dongkuk",label:"동국제강",cat:"top92",rank:66,size:11,desc:"동일인: 장세주 | #66위 | 동국홀딩스 32.5% | 계열사 0개"},
+  {id:"bs",label:"BS",cat:"top92",rank:67,size:11,desc:"동일인: 이기승 | #67위 | 비에스보성 36.3% | 계열사 0개"},
+  {id:"samyang",label:"삼양",cat:"top92",rank:68,size:11,desc:"동일인: 김윤 | #68위 | 삼양홀딩스 3.89% | 계열사 0개"},
+  {id:"lig",label:"엘아이지",cat:"top92",rank:69,size:11,desc:"동일인: 구본상 | #69위 | LIG 56.2% | 계열사 0개"},
+  {id:"joongang",label:"중앙",cat:"top92",rank:70,size:11,desc:"동일인: 홍석현 | #70위 | 중앙홀딩스 7.0% | 계열사 0개"},
+  {id:"yujin",label:"유진",cat:"top92",rank:71,size:11,desc:"동일인: 유경선 | #71위 | 유진기업 11.5% | 계열사 0개"},
+  {id:"koryo",label:"고려에이치씨",cat:"top92",rank:72,size:11,desc:"동일인: 박정석 | #72위 | 고려에이치씨 24.7% | 계열사 0개"},
+  {id:"bgf",label:"BGF",cat:"top92",rank:73,size:11,desc:"동일인: 홍석조 | #73위 | BGF 32.4% | 계열사 0개"},
+  {id:"daekwang",label:"대광",cat:"top92",rank:74,size:11,desc:"동일인: 조영훈 | #74위 | 대광건영 78.3% | 계열사 0개"},
+  {id:"bando",label:"반도홀딩스",cat:"top92",rank:75,size:11,desc:"동일인: 권홍사 | #75위 | 반도홀딩스 69.6% | 계열사 0개"},
+  {id:"daeshin",label:"대신",cat:"top92",rank:76,size:11,desc:"동일인: 양홍석 | #76위 | 대신증권 5.9% | 계열사 0개"},
+  {id:"ok_finance",label:"오케이금융그룹",cat:"top92",rank:77,size:11,desc:"동일인: 최윤 | #77위 | 오케이홀딩스대부 56.7% | 계열사 0개"},
+  {id:"hite_jinro",label:"하이트진로",cat:"top92",rank:78,size:11,desc:"동일인: 박문덕 | #78위 | 하이트진로홀딩스 28.9% | 계열사 0개"},
+  {id:"nongshim",label:"농심",cat:"top92",rank:79,size:11,desc:"동일인: 신동원 | #79위 | 농심홀딩스 42.9% | 계열사 0개"},
+  {id:"dn",label:"DN",cat:"top92",rank:80,size:11,desc:"동일인: 김상헌 | #80위 | 디엔오토모티브 33.4% | 계열사 0개"},
+  {id:"hyundai_marine",label:"현대해상화재보험",cat:"top92",rank:81,size:11,desc:"동일인: 정몽윤 | #81위 | 현대해상 22.0% | 계열사 0개"},
+  {id:"shinyoung",label:"신영",cat:"top92",rank:82,size:11,desc:"동일인: 정춘보 | #82위 | 신영 85.4% | 계열사 0개"},
+  {id:"paradise",label:"파라다이스",cat:"top92",rank:83,size:11,desc:"동일인: 전필립 | #83위 | 파라다이스글로벌 67.3% | 계열사 0개"},
+  {id:"is_holdings",label:"아이에스지주",cat:"top92",rank:84,size:11,desc:"동일인: 권혁운 | #84위 | 아이에스지주 49.9% | 계열사 0개"},
+  {id:"hybe",label:"하이브",cat:"top92",rank:85,size:11,desc:"동일인: 방시혁 | #85위 | 하이브 31.6% | 계열사 0개"},
+  {id:"hansol",label:"한솔",cat:"top92",rank:86,size:11,desc:"동일인: 조동길 | #86위 | 한솔홀딩스 17.6% | 계열사 0개"},
+  {id:"sampyo",label:"삼표",cat:"top92",rank:87,size:11,desc:"동일인: 정도원 | #87위 | 삼표산업 25.9% | 계열사 0개"},
+  {id:"sajo",label:"사조",cat:"top92",rank:88,size:11,desc:"동일인: 주진우 | #88위 | 사조산업 14.2% | 계열사 0개"},
+  {id:"wonik",label:"원익",cat:"top92",rank:89,size:11,desc:"동일인: 이용한 | #89위 | 원익홀딩스 18.1% | 계열사 0개"},
+  {id:"bithumb",label:"빗썸",cat:"top92",rank:90,size:11,desc:"동일인: 이정훈 | #90위 | SGBTC 50% | 계열사 0개"},
+  {id:"ucargo",label:"유코카캐리어스",cat:"top92",rank:91,size:11,desc:"동일인: 유코카캐리어스(법인) | #91위 | 법인 자체 | 계열사 0개"},
+  {id:"youngone",label:"영원",cat:"top92",rank:92,size:11,desc:"동일인: 성기학 | #92위 | 영원무역홀딩스 16.8% | 계열사 0개"},
+  {id:"sec_semi",label:"반도체·IT",cat:"sector",rank:0,size:13,desc:"삼성전자·SK하이닉스 | AI·HBM 수요 급증"},
+  {id:"sec_bat",label:"배터리·소재",cat:"sector",rank:0,size:13,desc:"에코프로비엠·포스코퓨처엠·LG에너지솔루션"},
+  {id:"sec_chem",label:"화학·정유",cat:"sector",rank:0,size:13,desc:"LG화학·롯데케미칼·에쓰오일·금호석유화학"},
+  {id:"sec_steel",label:"철강",cat:"sector",rank:0,size:13,desc:"포스코·동국제강·세아·현대제철"},
+  {id:"sec_ship",label:"조선·해운",cat:"sector",rank:0,size:13,desc:"HD현대중공업·삼성중공업·에이치엠엠"},
+  {id:"sec_const",label:"건설",cat:"sector",rank:0,size:13,desc:"현대건설·DL이앤씨·GS건설·롯데건설 | PF 리스크"},
+  {id:"sec_fin",label:"금융",cat:"sector",rank:0,size:13,desc:"농협·교보생명·카카오뱅크·대신증권"},
+  {id:"sec_bio",label:"바이오·제약",cat:"sector",rank:0,size:13,desc:"셀트리온·에코프로·부광약품"},
+  {id:"sec_media",label:"미디어·엔터",cat:"sector",rank:0,size:13,desc:"카카오엔터·SM엔터·하이브·CJ이엔엠"},
+  {id:"sec_retail",label:"유통·소비",cat:"sector",rank:0,size:13,desc:"신세계·롯데쇼핑·BGF·현대백화점"},
+  {id:"cr_spread",label:"크레딧 스프레드",cat:"credit",rank:0,size:13,desc:"국채 대비 회사채 추가금리"},
+  {id:"cr_leverage",label:"레버리지",cat:"credit",rank:0,size:13,desc:"순차입금/EBITDA | 3.0x↓ IG | 4.0x↑ 위험"},
+  {id:"cr_coverage",label:"이자보상배율",cat:"credit",rank:0,size:13,desc:"EBITDA/이자비용 | 3.0x 이상 안정"},
+  {id:"cr_cashflow",label:"잉여현금흐름",cat:"credit",rank:0,size:13,desc:"영업현금흐름 - CAPEX"},
+  {id:"cr_pf",label:"부동산PF",cat:"credit",rank:0,size:13,desc:"건설사·증권사 우발채무 | 태영건설 워크아웃"},
+];
+const DEF_EDGES=[
+  {s:"samsung",t:"sec_semi",w:3},
+  {s:"sk",t:"sec_semi",w:3},
+  {s:"sk",t:"sec_chem",w:2},
+  {s:"hyundai",t:"sec_ship",w:1},
+  {s:"lg",t:"sec_bat",w:3},
+  {s:"lg",t:"sec_chem",w:2},
+  {s:"posco",t:"sec_steel",w:3},
+  {s:"posco",t:"sec_bat",w:2},
+  {s:"hanwha",t:"sec_ship",w:2},
+  {s:"hanwha",t:"sec_fin",w:2},
+  {s:"hd_hd",t:"sec_ship",w:3},
+  {s:"nonghyup",t:"sec_fin",w:3},
+  {s:"gs",t:"sec_chem",w:2},
+  {s:"gs",t:"sec_const",w:2},
+  {s:"shinsegae",t:"sec_retail",w:3},
+  {s:"hanjin",t:"sec_ship",w:2},
+  {s:"cj",t:"sec_retail",w:2},
+  {s:"cj",t:"sec_media",w:2},
+  {s:"kakao",t:"sec_fin",w:2},
+  {s:"kakao",t:"sec_media",w:3},
+  {s:"lotte",t:"sec_retail",w:3},
+  {s:"lotte",t:"sec_chem",w:1},
+  {s:"lotte",t:"sec_const",w:2},
+  {s:"celltrion",t:"sec_bio",w:3},
+  {s:"naver",t:"sec_media",w:2},
+  {s:"ecopro",t:"sec_bat",w:3},
+  {s:"hybe",t:"sec_media",w:3},
+  {s:"doosan",t:"cr_leverage",w:2},
+  {s:"taeyoung",t:"sec_const",w:2},
+  {s:"cr_spread",t:"cr_leverage",w:3},
+  {s:"cr_leverage",t:"cr_cashflow",w:3},
+  {s:"cr_pf",t:"sec_const",w:3},
+];
+
+// ═══════════════════════════════════════
+// LIVE DATA
+// ═══════════════════════════════════════
+let CATS, NODES, EDGES;
+
+
+// ═══════════════════════════════════════
+// AFFILIATES DATA (Xmind 파싱)
 // ═══════════════════════════════════════
 const AFFILIATES_DATA={
 "sk":[
@@ -1551,164 +1711,8 @@ OCF가 너무 떨어져서 재무개선 시간 걸릴듯. 계열지원의지는 
 };
 
 // ═══════════════════════════════════════
-// DEFAULT DATA
+// 계열사 런타임
 // ═══════════════════════════════════════
-const DEF_CATS=[
-  {id:'top10',  label:'TOP 10 그룹',    color:'#4a9eff'},
-  {id:'top30',  label:'TOP 11-30 그룹', color:'#51cf66'},
-  {id:'top60',  label:'TOP 31-60 그룹', color:'#ffd43b'},
-  {id:'top92',  label:'TOP 61-92 그룹', color:'#ff922b'},
-  {id:'sector', label:'섹터 / 업종',    color:'#cc5de8'},
-  {id:'credit', label:'크레딧 개념',    color:'#ff6b6b'},
-];
-const DEF_NODES=[
-  {id:"samsung",label:"삼성",cat:"top10",rank:1,size:28,desc:"동일인: 이재용 | #1위 | 삼성물산 19.8% | 계열사 0개"},
-  {id:"sk",label:"에스케이",cat:"top10",rank:2,size:28,desc:"동일인: 최태원 | #2위 | SK(주) 17.8% | 계열사 33개"},
-  {id:"hyundai",label:"현대자동차",cat:"top10",rank:3,size:28,desc:"동일인: 정의선 | #3위 | 현대글로비스 20.0% | 계열사 18개"},
-  {id:"lg",label:"엘지",cat:"top10",rank:4,size:24,desc:"동일인: 구광모 | #4위 | LG(주) 15.7% | 계열사 13개"},
-  {id:"lotte",label:"롯데",cat:"top10",rank:5,size:24,desc:"동일인: 신동빈 | #5위 | 롯데지주 13.0% | 계열사 12개"},
-  {id:"posco",label:"포스코",cat:"top10",rank:6,size:24,desc:"동일인: 포스코홀딩스 | #6위 | 법인지배 | 계열사 8개"},
-  {id:"hanwha",label:"한화",cat:"top10",rank:7,size:24,desc:"동일인: 김승연 | #7위 | 한화(주) 10.53% | 계열사 24개"},
-  {id:"hd_hd",label:"HD현대",cat:"top10",rank:8,size:24,desc:"동일인: 정몽준 | #8위 | HD현대 26.6% | 계열사 17개"},
-  {id:"nonghyup",label:"농협",cat:"top10",rank:9,size:24,desc:"동일인: 농협중앙회 | #9위 | 조합→중앙회 | 계열사 14개"},
-  {id:"gs",label:"지에스",cat:"top10",rank:10,size:24,desc:"동일인: 허창수 | #10위 | GS(주) 4.59% | 계열사 21개"},
-  {id:"shinsegae",label:"신세계",cat:"top30",rank:11,size:18,desc:"동일인: 이명희 | #11위 | 신세계 10.2% | 계열사 37개"},
-  {id:"hanjin",label:"한진",cat:"top30",rank:12,size:18,desc:"동일인: 조원태 | #12위 | 한진칼 5.73% | 계열사 11개"},
-  {id:"kt",label:"케이티",cat:"top30",rank:13,size:18,desc:"동일인: KT(법인) | #13위 | 자기주식 2.8% | 계열사 5개"},
-  {id:"cj",label:"씨제이",cat:"top30",rank:14,size:18,desc:"동일인: 이재현 | #14위 | CJ 34.4% | 계열사 14개"},
-  {id:"ls",label:"엘에스",cat:"top30",rank:15,size:18,desc:"동일인: 구자은 | #15위 | LS(주) 3.63% | 계열사 19개"},
-  {id:"kakao",label:"카카오",cat:"top30",rank:16,size:18,desc:"동일인: 김범수 | #16위 | 카카오 13.3% | 계열사 17개"},
-  {id:"hmm",label:"에이치엠엠",cat:"top30",rank:17,size:18,desc:"동일인: HMM(법인) | #17위 | 산업은행·해양진흥공사 | 계열사 4개"},
-  {id:"doosan",label:"두산",cat:"top30",rank:18,size:18,desc:"동일인: 박정원 | #18위 | 두산(주) 6.0% | 계열사 10개"},
-  {id:"dl",label:"DL",cat:"top30",rank:19,size:18,desc:"동일인: 이해욱 | #19위 | 대림 52.3% | 계열사 8개"},
-  {id:"joonghung",label:"중흥건설",cat:"top30",rank:20,size:18,desc:"동일인: 정창선 | #20위 | 중흥건설 76.7% | 계열사 4개"},
-  {id:"celltrion",label:"셀트리온",cat:"top60",rank:21,size:14,desc:"동일인: 서정진 | #21위 | 셀트리온홀딩스 98.1% | 계열사 2개"},
-  {id:"naver",label:"네이버",cat:"top60",rank:22,size:14,desc:"동일인: 이해진 | #22위 | 네이버 3.8% | 계열사 7개"},
-  {id:"soil",label:"에쓰-오일",cat:"top60",rank:23,size:14,desc:"동일인: 에쓰-오일(법인) | #23위 | 아람코 자회사 | 계열사 1개"},
-  {id:"mirae",label:"미래에셋",cat:"top60",rank:24,size:14,desc:"동일인: 박현주 | #24위 | 미래에셋자산운용 60.2% | 계열사 9개"},
-  {id:"coupang",label:"쿠팡",cat:"top60",rank:25,size:14,desc:"동일인: 쿠팡(법인) | #25위 | NYSE 상장 | 계열사 4개"},
-  {id:"hyundai_dept",label:"현대백화점",cat:"top60",rank:26,size:14,desc:"동일인: 정지선 | #26위 | 현대지에프홀딩스 39.7% | 계열사 19개"},
-  {id:"hankook",label:"한국앤컴퍼니",cat:"top60",rank:27,size:14,desc:"동일인: 조양래 | #27위 | 한국앤컴퍼니 20.0% | 계열사 10개"},
-  {id:"booyoung",label:"부영",cat:"top60",rank:28,size:14,desc:"동일인: 이중근 | #28위 | 부영 93.79% | 계열사 6개"},
-  {id:"youngpoong",label:"영풍",cat:"top60",rank:29,size:14,desc:"동일인: 장형진 | #29위 | 영풍 직접보유 | 계열사 4개"},
-  {id:"harim",label:"하림",cat:"top60",rank:30,size:14,desc:"동일인: 김홍국 | #30위 | 하림지주 21.1% | 계열사 8개"},
-  {id:"hyosung",label:"효성",cat:"top60",rank:31,size:14,desc:"동일인: 조현준 | #31위 | 효성(주) 직접보유 | 계열사 10개"},
-  {id:"janggeum",label:"장금상선",cat:"top60",rank:32,size:14,desc:"동일인: 정태순 | #32위 | 장금상선 17.0% | 계열사 3개"},
-  {id:"sm_group",label:"SM",cat:"top60",rank:33,size:14,desc:"동일인: 우오현 | #33위 | 삼라마이다스 74.0% | 계열사 14개"},
-  {id:"hdc",label:"에이치디씨",cat:"top60",rank:34,size:14,desc:"동일인: 정몽규 | #34위 | HDC 33.7% | 계열사 7개"},
-  {id:"hoban",label:"호반건설",cat:"top60",rank:35,size:14,desc:"동일인: 김상열 | #35위 | 호반건설 10.5% | 계열사 10개"},
-  {id:"dunamu",label:"두나무",cat:"top60",rank:36,size:14,desc:"동일인: 두나무(법인) | #36위 | 법인 자체 | 계열사 4개"},
-  {id:"ktng",label:"케이티앤지",cat:"top60",rank:37,size:14,desc:"동일인: KT&G(법인) | #37위 | 법인 자체 | 계열사 4개"},
-  {id:"kolon",label:"코오롱",cat:"top60",rank:38,size:14,desc:"동일인: 이웅열 | #38위 | 코오롱(주) 45.8% | 계열사 6개"},
-  {id:"kcc",label:"케이씨씨",cat:"top60",rank:39,size:14,desc:"동일인: 정몽진 | #39위 | KCC 20.0% | 계열사 5개"},
-  {id:"db_group",label:"DB",cat:"top92",rank:40,size:14,desc:"동일인: 김준기 | #40위 | DB Inc. 15.9% | 계열사 0개"},
-  {id:"nexon",label:"넥슨",cat:"top92",rank:41,size:11,desc:"동일인: 유정현 | #41위 | 엔엑스씨 33.4% | 계열사 0개"},
-  {id:"oci",label:"오씨아이",cat:"top92",rank:42,size:11,desc:"동일인: 이우현 | #42위 | OCI홀딩스 7.12% | 계열사 0개"},
-  {id:"lx",label:"엘엑스",cat:"top92",rank:43,size:11,desc:"동일인: 구본준 | #43위 | LX홀딩스 20.0% | 계열사 0개"},
-  {id:"seah",label:"세아",cat:"top92",rank:44,size:11,desc:"동일인: 이순형 | #44위 | 세아홀딩스 4.0% | 계열사 0개"},
-  {id:"netmarble",label:"넷마블",cat:"top92",rank:45,size:11,desc:"동일인: 방준혁 | #45위 | 인디스에어 99.4% | 계열사 0개"},
-  {id:"eland",label:"이랜드",cat:"top92",rank:46,size:11,desc:"동일인: 박성수 | #46위 | 이랜드월드 40.7% | 계열사 0개"},
-  {id:"kyobo",label:"교보생명보험",cat:"top92",rank:47,size:11,desc:"동일인: 신창재 | #47위 | 교보생명 33.8% | 계열사 0개"},
-  {id:"koreagm",label:"한국지엠",cat:"top92",rank:48,size:11,desc:"동일인: GM그룹 | #48위 | GM 46.1% | 계열사 0개"},
-  {id:"daou_kiwoom",label:"다우키움",cat:"top92",rank:49,size:11,desc:"동일인: 김익래 | #49위 | 다우데이타 23.0% | 계열사 0개"},
-  {id:"kumho_petro",label:"금호석유화학",cat:"top92",rank:50,size:11,desc:"동일인: 박찬구 | #50위 | 금호석유화학 6.9% | 계열사 0개"},
-  {id:"daebang",label:"대방건설",cat:"top92",rank:51,size:11,desc:"동일인: 구교운 | #51위 | 대방건설 직접 | 계열사 0개"},
-  {id:"taeyoung",label:"태영",cat:"top92",rank:52,size:11,desc:"동일인: 윤세영 | #52위 | 티와이홀딩스 0.5% | 계열사 0개"},
-  {id:"samchully",label:"삼천리",cat:"top92",rank:53,size:11,desc:"동일인: 이만득 | #53위 | 삼천리 8.3% | 계열사 0개"},
-  {id:"kg",label:"KG",cat:"top92",rank:54,size:11,desc:"동일인: 곽재선 | #54위 | KG케미칼 16.3% | 계열사 0개"},
-  {id:"ecopro",label:"에코프로",cat:"top92",rank:55,size:11,desc:"동일인: 이동채 | #55위 | 에코프로 18.8% | 계열사 0개"},
-  {id:"hl",label:"HL",cat:"top92",rank:56,size:11,desc:"동일인: 정몽원 | #56위 | HL홀딩스 27.07% | 계열사 0개"},
-  {id:"dongwon",label:"동원",cat:"top92",rank:57,size:11,desc:"동일인: 김남정 | #57위 | 동원산업 59.9% | 계열사 0개"},
-  {id:"amore",label:"아모레퍼시픽",cat:"top92",rank:58,size:11,desc:"동일인: 서경배 | #58위 | 아모레퍼시픽홀딩스 48.7% | 계열사 0개"},
-  {id:"taekwang",label:"태광",cat:"top92",rank:59,size:11,desc:"동일인: 이호진 | #59위 | 흥국생명 47.73% | 계열사 0개"},
-  {id:"krafton",label:"크래프톤",cat:"top92",rank:60,size:11,desc:"동일인: 장병규 | #60위 | 크래프톤 14.9% | 계열사 0개"},
-  {id:"globalseah",label:"글로벌세아",cat:"top92",rank:61,size:11,desc:"동일인: 김웅기 | #61위 | 글로벌세아 84.8% | 계열사 0개"},
-  {id:"kai",label:"한국항공우주산업",cat:"top92",rank:62,size:11,desc:"동일인: KAI(법인) | #62위 | 공동지배 | 계열사 0개"},
-  {id:"mdm",label:"엠디엠",cat:"top92",rank:63,size:11,desc:"동일인: 문주현 | #63위 | 엠디엠 95.0% | 계열사 0개"},
-  {id:"sono",label:"소노인터내셔널",cat:"top92",rank:64,size:11,desc:"동일인: 박춘희 | #64위 | 소노인터내셔널 33.2% | 계열사 0개"},
-  {id:"aekyung",label:"애경",cat:"top92",rank:65,size:11,desc:"동일인: 장영신 | #65위 | AK홀딩스 7.4% | 계열사 0개"},
-  {id:"dongkuk",label:"동국제강",cat:"top92",rank:66,size:11,desc:"동일인: 장세주 | #66위 | 동국홀딩스 32.5% | 계열사 0개"},
-  {id:"bs",label:"BS",cat:"top92",rank:67,size:11,desc:"동일인: 이기승 | #67위 | 비에스보성 36.3% | 계열사 0개"},
-  {id:"samyang",label:"삼양",cat:"top92",rank:68,size:11,desc:"동일인: 김윤 | #68위 | 삼양홀딩스 3.89% | 계열사 0개"},
-  {id:"lig",label:"엘아이지",cat:"top92",rank:69,size:11,desc:"동일인: 구본상 | #69위 | LIG 56.2% | 계열사 0개"},
-  {id:"joongang",label:"중앙",cat:"top92",rank:70,size:11,desc:"동일인: 홍석현 | #70위 | 중앙홀딩스 7.0% | 계열사 0개"},
-  {id:"yujin",label:"유진",cat:"top92",rank:71,size:11,desc:"동일인: 유경선 | #71위 | 유진기업 11.5% | 계열사 0개"},
-  {id:"koryo",label:"고려에이치씨",cat:"top92",rank:72,size:11,desc:"동일인: 박정석 | #72위 | 고려에이치씨 24.7% | 계열사 0개"},
-  {id:"bgf",label:"BGF",cat:"top92",rank:73,size:11,desc:"동일인: 홍석조 | #73위 | BGF 32.4% | 계열사 0개"},
-  {id:"daekwang",label:"대광",cat:"top92",rank:74,size:11,desc:"동일인: 조영훈 | #74위 | 대광건영 78.3% | 계열사 0개"},
-  {id:"bando",label:"반도홀딩스",cat:"top92",rank:75,size:11,desc:"동일인: 권홍사 | #75위 | 반도홀딩스 69.6% | 계열사 0개"},
-  {id:"daeshin",label:"대신",cat:"top92",rank:76,size:11,desc:"동일인: 양홍석 | #76위 | 대신증권 5.9% | 계열사 0개"},
-  {id:"ok_finance",label:"오케이금융그룹",cat:"top92",rank:77,size:11,desc:"동일인: 최윤 | #77위 | 오케이홀딩스대부 56.7% | 계열사 0개"},
-  {id:"hite_jinro",label:"하이트진로",cat:"top92",rank:78,size:11,desc:"동일인: 박문덕 | #78위 | 하이트진로홀딩스 28.9% | 계열사 0개"},
-  {id:"nongshim",label:"농심",cat:"top92",rank:79,size:11,desc:"동일인: 신동원 | #79위 | 농심홀딩스 42.9% | 계열사 0개"},
-  {id:"dn",label:"DN",cat:"top92",rank:80,size:11,desc:"동일인: 김상헌 | #80위 | 디엔오토모티브 33.4% | 계열사 0개"},
-  {id:"hyundai_marine",label:"현대해상화재보험",cat:"top92",rank:81,size:11,desc:"동일인: 정몽윤 | #81위 | 현대해상 22.0% | 계열사 0개"},
-  {id:"shinyoung",label:"신영",cat:"top92",rank:82,size:11,desc:"동일인: 정춘보 | #82위 | 신영 85.4% | 계열사 0개"},
-  {id:"paradise",label:"파라다이스",cat:"top92",rank:83,size:11,desc:"동일인: 전필립 | #83위 | 파라다이스글로벌 67.3% | 계열사 0개"},
-  {id:"is_holdings",label:"아이에스지주",cat:"top92",rank:84,size:11,desc:"동일인: 권혁운 | #84위 | 아이에스지주 49.9% | 계열사 0개"},
-  {id:"hybe",label:"하이브",cat:"top92",rank:85,size:11,desc:"동일인: 방시혁 | #85위 | 하이브 31.6% | 계열사 0개"},
-  {id:"hansol",label:"한솔",cat:"top92",rank:86,size:11,desc:"동일인: 조동길 | #86위 | 한솔홀딩스 17.6% | 계열사 0개"},
-  {id:"sampyo",label:"삼표",cat:"top92",rank:87,size:11,desc:"동일인: 정도원 | #87위 | 삼표산업 25.9% | 계열사 0개"},
-  {id:"sajo",label:"사조",cat:"top92",rank:88,size:11,desc:"동일인: 주진우 | #88위 | 사조산업 14.2% | 계열사 0개"},
-  {id:"wonik",label:"원익",cat:"top92",rank:89,size:11,desc:"동일인: 이용한 | #89위 | 원익홀딩스 18.1% | 계열사 0개"},
-  {id:"bithumb",label:"빗썸",cat:"top92",rank:90,size:11,desc:"동일인: 이정훈 | #90위 | SGBTC 50% | 계열사 0개"},
-  {id:"ucargo",label:"유코카캐리어스",cat:"top92",rank:91,size:11,desc:"동일인: 유코카캐리어스(법인) | #91위 | 법인 자체 | 계열사 0개"},
-  {id:"youngone",label:"영원",cat:"top92",rank:92,size:11,desc:"동일인: 성기학 | #92위 | 영원무역홀딩스 16.8% | 계열사 0개"},
-  {id:"sec_semi",label:"반도체·IT",cat:"sector",rank:0,size:13,desc:"삼성전자·SK하이닉스 | AI·HBM 수요 급증"},
-  {id:"sec_bat",label:"배터리·소재",cat:"sector",rank:0,size:13,desc:"에코프로비엠·포스코퓨처엠·LG에너지솔루션"},
-  {id:"sec_chem",label:"화학·정유",cat:"sector",rank:0,size:13,desc:"LG화학·롯데케미칼·에쓰오일·금호석유화학"},
-  {id:"sec_steel",label:"철강",cat:"sector",rank:0,size:13,desc:"포스코·동국제강·세아·현대제철"},
-  {id:"sec_ship",label:"조선·해운",cat:"sector",rank:0,size:13,desc:"HD현대중공업·삼성중공업·에이치엠엠"},
-  {id:"sec_const",label:"건설",cat:"sector",rank:0,size:13,desc:"현대건설·DL이앤씨·GS건설·롯데건설 | PF 리스크"},
-  {id:"sec_fin",label:"금융",cat:"sector",rank:0,size:13,desc:"농협·교보생명·카카오뱅크·대신증권"},
-  {id:"sec_bio",label:"바이오·제약",cat:"sector",rank:0,size:13,desc:"셀트리온·에코프로·부광약품"},
-  {id:"sec_media",label:"미디어·엔터",cat:"sector",rank:0,size:13,desc:"카카오엔터·SM엔터·하이브·CJ이엔엠"},
-  {id:"sec_retail",label:"유통·소비",cat:"sector",rank:0,size:13,desc:"신세계·롯데쇼핑·BGF·현대백화점"},
-  {id:"cr_spread",label:"크레딧 스프레드",cat:"credit",rank:0,size:13,desc:"국채 대비 회사채 추가금리"},
-  {id:"cr_leverage",label:"레버리지",cat:"credit",rank:0,size:13,desc:"순차입금/EBITDA | 3.0x↓ IG | 4.0x↑ 위험"},
-  {id:"cr_coverage",label:"이자보상배율",cat:"credit",rank:0,size:13,desc:"EBITDA/이자비용 | 3.0x 이상 안정"},
-  {id:"cr_cashflow",label:"잉여현금흐름",cat:"credit",rank:0,size:13,desc:"영업현금흐름 - CAPEX"},
-  {id:"cr_pf",label:"부동산PF",cat:"credit",rank:0,size:13,desc:"건설사·증권사 우발채무 | 태영건설 워크아웃"},
-];
-const DEF_EDGES=[
-  {s:"samsung",t:"sec_semi",w:3},
-  {s:"sk",t:"sec_semi",w:3},
-  {s:"sk",t:"sec_chem",w:2},
-  {s:"hyundai",t:"sec_ship",w:1},
-  {s:"lg",t:"sec_bat",w:3},
-  {s:"lg",t:"sec_chem",w:2},
-  {s:"posco",t:"sec_steel",w:3},
-  {s:"posco",t:"sec_bat",w:2},
-  {s:"hanwha",t:"sec_ship",w:2},
-  {s:"hanwha",t:"sec_fin",w:2},
-  {s:"hd_hd",t:"sec_ship",w:3},
-  {s:"nonghyup",t:"sec_fin",w:3},
-  {s:"gs",t:"sec_chem",w:2},
-  {s:"gs",t:"sec_const",w:2},
-  {s:"shinsegae",t:"sec_retail",w:3},
-  {s:"hanjin",t:"sec_ship",w:2},
-  {s:"cj",t:"sec_retail",w:2},
-  {s:"cj",t:"sec_media",w:2},
-  {s:"kakao",t:"sec_fin",w:2},
-  {s:"kakao",t:"sec_media",w:3},
-  {s:"lotte",t:"sec_retail",w:3},
-  {s:"lotte",t:"sec_chem",w:1},
-  {s:"lotte",t:"sec_const",w:2},
-  {s:"celltrion",t:"sec_bio",w:3},
-  {s:"naver",t:"sec_media",w:2},
-  {s:"ecopro",t:"sec_bat",w:3},
-  {s:"hybe",t:"sec_media",w:3},
-  {s:"doosan",t:"cr_leverage",w:2},
-  {s:"taeyoung",t:"sec_const",w:2},
-  {s:"cr_spread",t:"cr_leverage",w:3},
-  {s:"cr_leverage",t:"cr_cashflow",w:3},
-  {s:"cr_pf",t:"sec_const",w:3},
-];
-
-// ═══════════════════════════════════════
-// LIVE DATA + 계열사 런타임
-// ═══════════════════════════════════════
-let CATS, NODES, EDGES;
 const expandedGroups = new Set();
 const affCache = {};
 window._affOv = {};
@@ -1718,12 +1722,12 @@ function isAff(n){ return !!(n&&n._isAff); }
 function buildAffs(gid){
   if(affCache[gid]) return affCache[gid];
   const raw=AFFILIATES_DATA[gid]||[];
-  const par=NODES.find(n=>n.id===gid);
+  const par=NODES.find(function(n){return n.id===gid;});
   const N=raw.length, r0=80+N*2.5;
   affCache[gid]=raw.map(function(a,i){
     const phi=Math.acos(1-2*(i+.5)/Math.max(N,1));
     const th=Math.PI*(1+Math.sqrt(5))*i;
-    const ov=(window._affOv[a.id])||{};
+    const ov=window._affOv[a.id]||{};
     return {
       id:a.id, label:a.label, cat:par?par.cat:'top10',
       desc:ov.desc!==undefined?ov.desc:a.desc,
@@ -1742,13 +1746,19 @@ function buildAffs(gid){
   });
   return affCache[gid];
 }
-function getAffs(){ const r=[]; expandedGroups.forEach(function(g){r.push.apply(r,buildAffs(g));}); return r; }
+function getAffs(){
+  const r=[];
+  expandedGroups.forEach(function(g){
+    var list=buildAffs(g);
+    for(var i=0;i<list.length;i++) r.push(list[i]);
+  });
+  return r;
+}
 function allN(){ return NODES.concat(getAffs()); }
 function toggleExpand(gid){
   if(expandedGroups.has(gid)){ expandedGroups.delete(gid); }
   else { expandedGroups.add(gid); buildAffs(gid); }
 }
-
 function resetToDefaults(){
   CATS =JSON.parse(JSON.stringify(DEF_CATS));
   NODES=JSON.parse(JSON.stringify(DEF_NODES));
@@ -1758,8 +1768,8 @@ function resetToDefaults(){
 }
 resetToDefaults();
 
-function catColor(id){ return (CATS.find(function(c){return c.id===id;})||{color:'#4a9eff'}).color; }
-function catLabel(id){ return (CATS.find(function(c){return c.id===id;})||{label:id}).label; }
+function catColor(id){ return (CATS.find(c=>c.id===id)||{color:'#4a9eff'}).color; }
+function catLabel(id){ return (CATS.find(c=>c.id===id)||{label:id}).label; }
 
 // ═══════════════════════════════════════
 // LOCALSTORAGE
@@ -1786,18 +1796,28 @@ function save(){
 }
 function tryLoad(){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return false;
-    const d=JSON.parse(raw);
-    if(!d.nodes||!d.nodes.length) return false;
+    const d = JSON.parse(raw);
+    if(!d.nodes || !d.nodes.length) return false;
     CATS =(d.categories&&d.categories.length)?d.categories:JSON.parse(JSON.stringify(DEF_CATS));
     NODES=d.nodes; EDGES=d.edges||[]; centerNodeId=d.centerNodeId||null;
     if(d.expandedGroups) d.expandedGroups.forEach(function(id){expandedGroups.add(id);});
     if(d.affOv) window._affOv=d.affOv;
     if(d.title){document.getElementById('graph-title').textContent=d.title;document.title=d.title;}
     return true;
-  }catch(e){return false;}
+  }catch(e){ return false; }
 }
+
+// ═══════════════════════════════════════
+// CANVAS + 3D
+// ═══════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
 
 function place(n,i,total){
   const phi=Math.acos(1-2*(i+.5)/Math.max(total,1));
@@ -1810,8 +1830,8 @@ function place(n,i,total){
   n.vx=n.vy=n.vz=0; n.sx=n.sy=0; n.pscale=.75; n.depth=0;
 }
 function placeAll(){
-  NODES.forEach((n,i)=>place(n,i,NODES.length));
-  expandedGroups.forEach(gid=>{delete affCache[gid]; buildAffs(gid);});
+  NODES.forEach(function(n,i){place(n,i,NODES.length);});
+  expandedGroups.forEach(function(gid){delete affCache[gid]; buildAffs(gid);});
 }
 
 let forceFrames = 0;
@@ -1829,8 +1849,11 @@ function forceStep(){
     NODES[i]._fx=fx; NODES[i]._fy=fy; NODES[i]._fz=fz;
   }
   EDGES.forEach(e=>{
-    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+    const _hm={}; allN().forEach(function(n){_hm[n.id]=n;});
+  EDGES.forEach(function(e){
+    const a=_hm[e.s], b=_hm[e.t];
     if(!a||!b) return;
+    // --- hitE inner ---
     const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
     const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=(d-k)*.015*(e.w||2);
     a._fx+=f*dx/d; a._fy+=f*dy/d; a._fz+=f*dz/d;
@@ -1916,7 +1939,7 @@ function visible(n){
     if(researchedOnly&&!n.glow) return false;
   } else if(researchedOnly&&n.cat!=='sector'&&n.cat!=='credit'){
     const affs=AFFILIATES_DATA[n.id]||[];
-    if(!affs.some(a=>a.researched)) return false;
+    if(!affs.some(function(a){return a.researched;})) return false;
   }
   if(sentFilter!=='all') return n.sentiment===sentFilter;
   return activeFilter==='all'||n.cat===activeFilter;
@@ -1951,14 +1974,13 @@ function gp(e){
 }
 function hitN(mx,my){
   let best=null, minD=30;
-  NODES.forEach(n=>{ if(!visible(n)) return; const d=Math.hypot(n.sx-mx,n.sy-my); if(d<minD){minD=d;best=n;} });
+  allN().forEach(function(n){ if(!visible(n)) return; const d=Math.hypot(n.sx-mx,n.sy-my); if(d<minD){minD=d;best=n;} });
   return best;
 }
 function hitE(mx,my){
   let best=null, minD=18;
-  const _hm={}; allN().forEach(n=>_hm[n.id]=n);
   EDGES.forEach(e=>{
-    const a=_hm[e.s],b=_hm[e.t];
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
     if(!a||!b||!visible(a)||!visible(b)) return;
     const dx=b.sx-a.sx, dy=b.sy-a.sy, len2=dx*dx+dy*dy;
     if(len2<1) return;
@@ -2123,7 +2145,7 @@ function resetView(){
   camX=.3; camY=0; panX=0; panY=0;
 }
 function resetAll(){
-  if(!confirm('107개 기본 노드로 초기화할까요?')) return; expandedGroups.clear(); Object.keys(affCache).forEach(k=>delete affCache[k]);
+  if(!confirm('107개 기본 노드로 초기화할까요?')) return; expandedGroups.clear(); Object.keys(affCache).forEach(function(k){delete affCache[k];});
   resetToDefaults(); placeAll(); forceFrames=0; activeFilter='all';
   hovered=null; selEdge=null; centerNodeId=null;
   closePanel(); closeEPanel();
@@ -2189,10 +2211,10 @@ function openEdit(n){
       document.getElementById('edit-gkis').value=n.gradeKIS||'';
       document.getElementById('edit-gnice').value=n.gradeNICE||'';
       document.getElementById('edit-gkr').value=n.gradeKR||'';
-      var b=document.getElementById('btn-glow');
-      b.textContent=n.glow?'● ON':'○ OFF';
-      b.style.background=n.glow?'rgba(255,210,60,.2)':'rgba(40,40,60,.5)';
-      b.style.borderColor=n.glow?'rgba(255,210,60,.6)':'rgba(100,100,130,.4)';
+      var _b=document.getElementById('btn-glow');
+      _b.textContent=n.glow?'● ON':'○ OFF';
+      _b.style.background=n.glow?'rgba(255,210,60,.2)':'rgba(40,40,60,.5)';
+      _b.style.borderColor=n.glow?'rgba(255,210,60,.6)':'rgba(100,100,130,.4)';
     } else { _as.style.display='none'; }
   }
   document.getElementById('del-section').style.display='block';
@@ -2235,11 +2257,16 @@ function saveNode(){
   if(oldId){
     // 기존 노드 수정
     var newId=labelToId(label,oldId);
-    var ex=NODES.find(n=>n.id===oldId);
-    if(!ex){for(var _l of Object.values(affCache)){ex=_l.find(n=>n.id===oldId);if(ex)break;}}
+    var ex=NODES.find(function(n){return n.id===oldId;});
+    if(!ex){for(var _l of Object.values(affCache)){var _f=_l.find(function(n){return n.id===oldId;});if(_f){ex=_f;break;}}}
     if(ex){
       ex.label=label; ex.cat=cat; ex.size=size; ex.desc=desc; ex.sentiment=sentiment;
-      if(isAff(ex)){ex.gradeKIS=document.getElementById('edit-gkis')?.value.trim()||ex.gradeKIS;ex.gradeNICE=document.getElementById('edit-gnice')?.value.trim()||ex.gradeNICE;ex.gradeKR=document.getElementById('edit-gkr')?.value.trim()||ex.gradeKR;ex._mod=true;}
+      if(isAff(ex)){
+        var _gkis=document.getElementById('edit-gkis'); if(_gkis) ex.gradeKIS=_gkis.value.trim();
+        var _gnice=document.getElementById('edit-gnice'); if(_gnice) ex.gradeNICE=_gnice.value.trim();
+        var _gkr=document.getElementById('edit-gkr'); if(_gkr) ex.gradeKR=_gkr.value.trim();
+        ex._mod=true;
+      }
       // id가 바뀌면 엣지도 같이 업데이트
       if(newId!==oldId){
         ex.id=newId;
@@ -2330,7 +2357,7 @@ function openEPanel(e){
   src.textContent=na?na.label:e.s; src.style.background='rgba('+hr(catColor(na?.cat))+',0.15)';
   tgt.textContent=nb?nb.label:e.t; tgt.style.background='rgba('+hr(catColor(nb?.cat))+',0.15)';
   document.getElementById('ep-w').value=e.w||2;
-  var _ste=document.getElementById('ep-stake'); if(_ste) _ste.value=e.stake||'';
+  var _ste=document.getElementById('ep-stake'); if(_ste)_ste.value=e.stake||'';
   document.getElementById('ep-rel').value=e.relation||'';
   updateW(e.w||2); setDir(e.dir||'both',true);
   document.getElementById('epanel').classList.add('open');
@@ -2627,15 +2654,16 @@ function draw(){
   ctx.fillStyle='#04080f'; ctx.fillRect(0,0,W,H);
 
   // project
-  allN().forEach(n=>{
+  allN().forEach(function(n){
     const p=proj(n.x,n.y,n.z);
     n.sx=p.sx+panX; n.sy=p.sy+panY; n.pscale=p.sc; n.depth=p.depth;
   });
   const cx=W/2, cy=H/2;
 
   // edges
-  EDGES.forEach(e=>{
-    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
+  const _dm={}; allN().forEach(function(n){_dm[n.id]=n;});
+  EDGES.forEach(function(e){
+    const a=_dm[e.s], b=_dm[e.t];
     if(!a||!b) return;
     const av=visible(a), bv=visible(b);
     if(!av&&!bv) return;
@@ -2695,7 +2723,7 @@ function draw(){
   }
 
   // nodes
-  [...NODES].sort((a,b)=>a.depth-b.depth).forEach(n=>{
+  allN().slice().sort(function(a,b){return a.depth-b.depth;}).forEach(function(n){
     const vis=visible(n);
     const isH=hovered&&hovered.id===n.id;
     const isSearch=searchHighlight.size>0&&searchHighlight.has(n.id);
