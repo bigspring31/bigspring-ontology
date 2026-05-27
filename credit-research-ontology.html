@@ -1849,11 +1849,8 @@ function forceStep(){
     NODES[i]._fx=fx; NODES[i]._fy=fy; NODES[i]._fz=fz;
   }
   EDGES.forEach(e=>{
-    const _hm={}; allN().forEach(function(n){_hm[n.id]=n;});
-  EDGES.forEach(function(e){
-    const a=_hm[e.s], b=_hm[e.t];
+    const a=NODES.find(n=>n.id===e.s), b=NODES.find(n=>n.id===e.t);
     if(!a||!b) return;
-    // --- hitE inner ---
     const dx=b.x-a.x, dy=b.y-a.y, dz=b.z-a.z;
     const d=Math.sqrt(dx*dx+dy*dy+dz*dz)+.01, f=(d-k)*.015*(e.w||2);
     a._fx+=f*dx/d; a._fy+=f*dy/d; a._fz+=f*dz/d;
